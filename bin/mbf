@@ -1,0 +1,11 @@
+#!/bin/bash
+FAN1=/sys/devices/platform/applesmc.768/fan1_min
+FAN2=/sys/devices/platform/applesmc.768/fan2_min
+
+if [ -z "${1##[0-9]*}" ]; then
+    echo Set fans
+    echo -n '1: '
+    echo $1 | sudo tee $FAN1
+    echo -n '2: '
+    echo $1 | sudo tee $FAN2
+fi

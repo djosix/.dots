@@ -1,0 +1,6 @@
+#!/bin/bash
+[ -z "`which apt`" ] && echo 'Error: This script needs apt installed' && exit 1
+[ ! $# = 1 ] && echo 'Usage: ./install <package-list-file>' && exit 0
+[ ! -f "$1" ] && echo 'Error: Not a file' && exit 1
+PACKAGES=`cat $1`
+echo $PACKAGES | xargs sudo apt install -y

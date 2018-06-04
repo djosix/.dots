@@ -1,0 +1,37 @@
+#!/bin/bash
+
+network=Wi-Fi
+server=140.115.189.153
+host=127.0.0.1
+port=57511
+
+[ "$1" ] && server=`echo $@ | tr ' ' '\n'`
+
+if [ `uname` = Darwin ]; then
+    echo Setup SOCKS proxy...
+    sudo networksetup -setsocksfirewallproxy $network $host $port
+    sudo networksetup -setsocksfirewallproxystate $network on
+    echo network=$network
+    echo server=$server
+    echo host=$host
+    echo port=$port
+    echo Start connection...
+    ssh -ND $port $server
+    echo Clean up SOCKS settings...
+    sudo networksetup -setsocksfirewallproxy $network '' ''
+    sudo networksetup -setsocksfirewallproxystate $network off
+elif [ `uname` = Linux ]; then
+    echo Setup SOCKS proxy...
+    gsettings set org.gnome.system.proxy.socks host $host
+    gsettings set org.gnome.system.proxy.socks port $port
+    gsettings set org.gnome.system.proxy mode manual
+    echo server=$server
+    echo host=$host
+    echo port=$port
+    echo Start connection...
+    ssh -ND $port $server
+    echo Clean up SOCKS settings...
+    gsettings set org.gnome.system.proxy mode none
+    gsettings set org.gnome.system.proxy.socks host ''
+    gsettings set org.gnome.system.proxy.socks port ''
+fi

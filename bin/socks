@@ -1,0 +1,29 @@
+#!/bin/bash
+
+network=Wi-Fi
+host=127.0.0.1
+port=9050 # Tor
+
+[ "$1" ] && host=$1
+[ "$2" ] && port=$2
+[ "$3" ] && network=$3
+
+if [ `uname` = Darwin ]; then
+    echo Setup SOCKS proxy...
+    sudo networksetup -setsocksfirewallproxy $network $host $port
+    sudo networksetup -setsocksfirewallproxystate $network on
+    read -p 'Press [Enter] to abort '
+    echo Clean up SOCKS settings...
+    sudo networksetup -setsocksfirewallproxy $network '' ''
+    sudo networksetup -setsocksfirewallproxystate $network off
+elif [ `uname` = Linux ]; then
+    echo Setup SOCKS proxy...
+    gsettings set org.gnome.system.proxy.socks host $host
+    gsettings set org.gnome.system.proxy.socks port $port
+    gsettings set org.gnome.system.proxy mode manual
+    read -p 'Press [Enter] to abort '
+    echo Clean up SOCKS settings...
+    gsettings set org.gnome.system.proxy mode none
+    gsettings set org.gnome.system.proxy.socks host ''
+    gsettings set org.gnome.system.proxy.socks port ''
+fi

@@ -1,0 +1,5 @@
+#!/bin/bash
+echo "Converting $1 from big5 to utf-8"
+iconv -f big5 -t utf-8 $1 > /tmp/.b5conv-temp
+mv /tmp/.b5conv-temp $1
+
