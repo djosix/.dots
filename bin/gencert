@@ -1,0 +1,14 @@
+#!/bin/bash
+
+openssl genrsa -des3 -out RootCA.key 2048
+chmod 600 RootCA.key
+openssl req -new -key RootCA.key -out RootCA.req
+openssl x509 -req -days 3650 -sha256 -extensions v3_ca -signkey RootCA.key -in RootCA.req -out RootCA.crt
+rm -f RootCA.req
+
+openssl genrsa -out ServerCert.key 2048
+openssl req -new -key ServerCert.key -out ServerCert.req
+echo 1000 > RootCA.srl
+openssl x509 -req -days 1095 -sha256 -extensions v3_req -CA RootCA.crt -CAkey RootCA.key -CAserial RootCA.srl -CAcreateserial -in ServerCert.req -out ServerCert.crt
+
+cat ServerCert.crt ServerCert.key > ServerCert.pem

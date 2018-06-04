@@ -1,0 +1,57 @@
+#!/bin/bash
+
+PATH='/bin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin'
+
+if [ ! `uname` = Darwin ]; then
+    echo 'Error: This script is for OS X only'
+    exit 1
+fi
+
+if [ ! $# = 2 ]; then
+    echo 'Usage: busb <disk> <iso>'
+    echo -e '\nSelect a block device below and specify an ISO image\n'
+    diskutil list
+    exit 0
+fi
+
+EXT=`echo $2 | egrep -o '\.(iso|ISO)$'`
+
+PRE='r' # rdisk
+TMP='/tmp' # for .dmg
+
+if [ -z "$EXT" -o ! -f "$2" ] ; then
+    echo 'Error: $2 must be an ISO file'
+    exit 1
+fi
+
+if [ ! -b $1 ]; then
+    echo 'Error: $1 must be a block file'
+    exit 1
+fi
+
+USB=$1
+ISO=$2
+DMG="$TMP/`basename $ISO $EXT`.dmg"
+OUT="`dirname $USB`/$PRE`basename $USB`"
+
+echo USB: $USB
+echo ISO: $ISO
+echo DMG: $DMG
+echo OUT: $OUT
+
+echo Converting $ISO to $DMG
+hdiutil convert -format UDRW -o $DMG $ISO
+
+echo Unmounting $USB
+diskutil unmountDisk $USB
+
+echo Copying files from $DMG to $OUT
+sudo dd if=$DMG of=$OUT bs=1m
+
+echo Ejecting $USB
+diskutil eject $USB
+
+echo Removing $DMG
+rm $DMG
+
+echo Done

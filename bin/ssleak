@@ -1,0 +1,2 @@
+#!/bin/bash
+openssl s_client -showcerts -connect $@ < /dev/null | openssl x509 -text | grep -A 1 "Subject Alternativer Name"

@@ -1,0 +1,9 @@
+#!/bin/bash
+
+if [ ! -d ~/.rbenv ]; then
+    echo Installing rbenv and ruby-build
+    git clone --depth 1 https://github.com/rbenv/rbenv.git ~/.rbenv
+    git clone --depth 1 https://github.com/rbenv/ruby-build.git ~/.rbenv/plugins/ruby-build
+fi
+echo Versions available to install:
+ls ~/.rbenv/plugins/ruby-build/share/ruby-build/

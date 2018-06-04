@@ -1,0 +1,7 @@
+#!/bin/bash
+[ "$1" ] && FILENAME=$1 || FILENAME=temp
+KEYLEN=${2:2048}
+openssl genrsa -out $FILENAME.key 2048
+openssl req -new -key $FILENAME.key -x509 -days 3653 -out $FILENAME.crt
+cat $FILENAME.key $FILENAME.crt >$FILENAME.pem
+

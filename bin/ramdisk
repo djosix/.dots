@@ -1,0 +1,45 @@
+#!/bin/bash
+
+# From http://tech.serbinn.net/2010/shell-script-to-create-ramdisk-on-mac-os-x/
+#
+
+[ ! `uname` = Darwin ] \
+    && echo 'Error: OS X only.' \
+    && exit
+
+ARGS=2
+E_BADARGS=99
+
+if [ $# = 0 ] # correct number of arguments to the script;
+then
+    [ -d '/Volumes/RamDisk' ] \
+        && echo /Volumes/RamDisk \
+        && exit
+    echo " "
+    echo "To create a RAMDISK -> Usage: `basename $0` create SIZE_IN_MB"
+    echo "To delete a RAMDISK -> Usage: `basename $0` delete"
+    echo " "
+    echo "Currently this script only supports one RAMDISK. Will update soon."
+    echo "DISK_ID can be shown with 'mount'. usually /dev/disk* where * is a number"
+    echo " "
+    echo " "
+    exit $E_BADARGS
+fi
+
+if [ $# = 2 -a "$1" = "create" ]
+then
+    echo "Creating RamDisk..."
+    RAMDISK_SIZE_MB=$2
+    RAMDISK_SECTORS=$((2048 * $RAMDISK_SIZE_MB))
+    DISK_ID=$(hdiutil attach -nomount ram://$RAMDISK_SECTORS)
+    echo "Disk ID is :" $DISK_ID
+    diskutil erasevolume HFS+ "RamDisk" ${DISK_ID}
+fi
+
+if [ "$1" = "delete" ]
+then
+    disk_id=`df | grep RamDisk | awk '{print $1}'`
+    echo "Delete/unmount RamDisk $disk_id"
+    umount -f $disk_id
+    hdiutil detach $disk_id
+fi
