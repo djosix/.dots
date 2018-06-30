@@ -20,7 +20,8 @@ bash:
 	@echo 'Setting up bash...'
 	@ln -sf $(DIR)/bash/bash_profile.sh ~/.bash_profile
 	@ln -sf $(DIR)/bash/bash_logout.sh ~/.bash_logout
-	@ln -sf $(DIR)/bash/bashrc.sh ~/.bashrc
+	@rm -f ~/.bashrc
+	@cp $(DIR)/bash/bashrc.sh ~/.bashrc
 
 zsh:
 	@echo 'Setting up zsh...'
