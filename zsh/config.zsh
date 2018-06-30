@@ -44,8 +44,9 @@ alias youtube-mp3="youtube-dl -x --audio-format mp3"
 alias youtube-mp3-smart="youtube-mp3 --ignore-errors --download-archive .youtube-dl"
 alias du="du -h"
 alias df="df -h"
-alias enter="docker run -it -w /root"
-alias here='enter -v `pwd`:/root/pwd -w /root/pwd'
+alias dr="docker run -it -w /root"
+alias drm='dr -v `pwd`:/root/pwd -w /root/pwd'
+alias drms='drm --cap-add=SYS_PTRACE --security-opt seccomp=unconfined'
 
 findname() {
     find . -name "*$1*"
