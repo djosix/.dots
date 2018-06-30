@@ -6,4 +6,3 @@ fi
 
 source ~/.dots/zsh/config.zsh
 source ~/.dots/zsh/ls_colors.zsh
-[ -f ~/.bashlocal ] && source ~/.bashlocal
