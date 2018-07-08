@@ -28,6 +28,7 @@ zsh:
 	@sh $(DIR)/zsh/install.sh $(DIR) $(ZSH) || echo 'Skip installing Oh My Zsh'
 	@ln -sf $(DIR)/zsh/djosix.zsh-theme $(ZSH)/themes/djosix.zsh-theme
 	@ln -sf $(DIR)/zsh/config.zsh ~/.dotzsh
+	@[ -f ~/.zshlocal ] || cp $(DIR)/zsh/local.zsh ~/.zshlocal
 
 vim:
 	@echo 'Setting up vim...'

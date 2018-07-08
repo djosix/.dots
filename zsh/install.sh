@@ -25,4 +25,3 @@ source $DIR/zsh/ls_colors.zsh
 source ~/.dotzsh
 source ~/.zshlocal
 " >> ~/.zshrc
-[ -f ~/.zshlocal ] || cp $DIR/zsh/local.zsh ~/.zshlocal
