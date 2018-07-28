@@ -74,18 +74,20 @@ alias gpom="git push origin master"
 alias gplom="git pull origin master"
 alias grst="git reset"
 
+[ $USER = root ] || SUDO=sudo
 
 # native aliases
 if [ `uname` = Linux ]; then
-    alias i="sudo apt install -y"
-    alias u="sudo apt update && sudo apt upgrade -y"
-    alias sctl="sudo systemctl"
-    alias ssv="sudo service"
-    alias sv="service"
-    alias ctl="systemctl"
+    alias i="$SUDO apt install -y"
+    alias u="$SUDO apt update && sudo apt upgrade -y"
+    alias sctl="$SUDO systemctl"
+    alias ssv="$SUDO service"
+    alias sv="$SUDO service"
+    alias ctl="$SUDO systemctl"
     alias ram="mkdir -p /dev/shm/$USER; cd /dev/shm/$USER"
     alias ls="ls --color=always"
 elif [ `uname` = Darwin ]; then
     alias dds="find . -name .DS_Store -exec rm -v {} +"
     alias i="brew install"
 fi
+
