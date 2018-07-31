@@ -7,8 +7,9 @@ RUN apt install -y \
     python python-dev python-pip \
     python3 python3-dev python3-pip \
     htop tmux git zsh gcc g++ make \
-    cmake binutils curl wget netcat \
-    vim zip unzip locales gdb
+    cmake binutils curl wget netcat nmap \
+    vim zip unzip locales \
+    gdb strace ltrace
 
 RUN pip install -U pip; \
     sed -i 's/from pip import main/from pip._internal import main/' /usr/bin/pip; \
