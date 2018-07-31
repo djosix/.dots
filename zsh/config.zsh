@@ -74,7 +74,7 @@ alias gpom="git push origin master"
 alias gplom="git pull origin master"
 alias grst="git reset"
 
-[ $USER = root ] || SUDO=sudo
+[ "$USER" = root ] || SUDO=sudo
 
 # native aliases
 if [ `uname` = Linux ]; then
