@@ -11,7 +11,7 @@ GIT_MAIL = djosicks@gmail.com
 DIR = $(shell pwd)
 UNAMEN = $(shell uname -n)
 
-.PHONY: default vim git bash zsh other update reset all
+.PHONY: default vim git bash zsh tmux other update reset all
 
 default:
 	@echo Select one to config
@@ -40,6 +40,10 @@ git:
 	@echo 'Setting up git...'
 	@git config --global user.name $(GIT_NAME)
 	@git config --global user.email $(GIT_MAIL)
+
+tmux:
+	@echo 'Copying tmux settings...'
+	@cp -f tmux/tmux.conf ~/.tmux.conf
 
 other:
 	@echo 'Setting up my directories...'
