@@ -45,7 +45,7 @@ tmux:
 	@echo 'Copying tmux settings...'
 	@cp -f tmux/tmux.conf ~/.tmux.conf
 
-other:
+dirs:
 	@echo 'Setting up my directories...'
 	@[ -d ~/Space ] || mkdir ~/Space
 	@[ -d ~/.bin ] || mkdir ~/.bin
@@ -59,5 +59,5 @@ reset:
 	@git add -A
 	@git reset --hard HEAD
 
-all: bash zsh vim other
+all: bash zsh vim tmux
 	@echo Done
