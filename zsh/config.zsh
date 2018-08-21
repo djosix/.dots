@@ -67,6 +67,7 @@ alias gra="git remote add"
 alias gcm="git commit -m"
 alias gct='git commit -m "$(date +"Update %Y/%m/%d %H:%M:%S")"'
 alias gcl="git clone"
+alias gcl1="gcl --depth 1"
 alias gck="git checkout"
 alias gbh="git branch"
 alias gpsh="git push"
