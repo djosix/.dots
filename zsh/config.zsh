@@ -45,7 +45,7 @@ alias youtube-mp3="youtube-dl -x --audio-format mp3"
 alias youtube-mp3-smart="youtube-mp3 --ignore-errors --download-archive .youtube-dl"
 alias du="du -h"
 alias df="df -h"
-alias dr='docker run -it -v $PWD:/root/workdir -w /root/workdir'
+alias dr='docker run -it --rm -v $PWD:/root/workdir -w /root/workdir'
 alias drs='dr --cap-add=SYS_PTRACE --security-opt seccomp=unconfined'
 
 findname() {
