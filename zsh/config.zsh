@@ -60,6 +60,7 @@ mcd() {
 
 # lazy git
 alias gaa="git add -A"
+alias gau="git add -u"
 alias gst="git status"
 alias glg="git log"
 alias ggi="git init"
