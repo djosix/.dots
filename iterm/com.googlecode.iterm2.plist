@@ -168,7 +168,7 @@
 	<key>NSTableView Supports v2 KeyBingingTable</key>
 	<true/>
 	<key>NSWindow Frame SharedPreferences</key>
-	<string>225 341 796 473 0 0 1680 1050 </string>
+	<string>225 302 796 473 0 0 1680 1028 </string>
 	<key>NSWindow Frame iTerm Window 0</key>
 	<string>382 416 780 477 0 0 1680 1028 </string>
 	<key>NSWindow Frame iTerm Window 1</key>
@@ -423,7 +423,7 @@
 			<key>Disable Window Resizing</key>
 			<true/>
 			<key>Flashing Bell</key>
-			<true/>
+			<false/>
 			<key>Foreground Color</key>
 			<dict>
 				<key>Blue Component</key>
