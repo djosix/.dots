@@ -1,0 +1,23 @@
+#!/bin/bash
+
+[ $# = 2 ] || \
+    echo "Usage: $0 <tty> <baud_rate>" > /dev/stderr && \
+    exit 1
+
+tty=$1
+baud_rate=$2
+
+interrupt() {
+    trap SIGINT
+    echo Killing $pid
+    kill -15 $pid
+    [ $? = 0 ] && echo Killed
+}
+
+trap interrupt SIGINT
+
+stty -echo raw speed $baud_rate < $tty
+cat < $tty &
+pid=$!
+cat > $tty
+
