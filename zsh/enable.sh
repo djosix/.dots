@@ -1,4 +1,4 @@
-# Djosix 2017.05.30
+# djosix 2018/08/25
 
 TEST_CURRENT_SHELL=$(expr "$SHELL" : '.*/\(.*\)')
 if [ "$TEST_CURRENT_SHELL" != "zsh" ]; then

@@ -1,63 +1,79 @@
-# Djosix 2017 06 30
+# djosix 2018/08/25
 
-# zsh
-ZSH = ~/.oh-my-zsh
-
-# git
+ZSH_OMZ = ~/.oh-my-zsh
 GIT_NAME = djosix
 GIT_MAIL = djosicks@gmail.com
 
-
 DIR = $(shell pwd)
-UNAMEN = $(shell uname -n)
 
-.PHONY: default vim git bash zsh tmux other update reset all
+
+.PHONY: default part all bash zsh vim tmux git vundle dirs update reset
 
 default:
-	@echo Select one to config
+	@echo '------ targets ------'
+	@echo 'bash'
+	@echo 'zsh'
+	@echo 'vim'
+	@echo 'tmux'
+	@echo 'part (bash, zsh, vim, tmux)'
+	@echo 'git'
+	@echo 'vundle - vim plugins'
+	@echo 'dirs'
+	@echo 'all (bash, zsh, vim, tmux, git, vundle, dirs)'
+	@echo 'update - discard and update'
+	@echo 'discard - discard changes in .dots'
+
+part: bash zsh vim tmux
+
+all: bash zsh vim tmux git vundle dirs
 
 bash:
-	@echo 'Setting up bash...'
-	@ln -sf $(DIR)/bash/bash_profile.sh ~/.bash_profile
-	@ln -sf $(DIR)/bash/bash_logout.sh ~/.bash_logout
-	@rm -f ~/.bashrc
-	@cp $(DIR)/bash/bashrc.sh ~/.bashrc
+	@echo '------ bash ------'
+	backup/backup.sh ~/.bashrc ~/.bash_profile ~/.bash_logout
+	rm -rf ~/.bashrc ~/.bash_profile ~/.bash_logout
+	cp bash/bashrc.sh ~/.bashrc
+	cp bash/bash_profile.sh ~/.bash_profile
+	cp bash/bash_logout.sh ~/.bash_logout
 
 zsh:
-	@echo 'Setting up zsh...'
-	@sh $(DIR)/zsh/install.sh $(DIR) $(ZSH) || echo 'Skip installing Oh My Zsh'
-	@ln -sf $(DIR)/zsh/djosix.zsh-theme $(ZSH)/themes/djosix.zsh-theme
-	@ln -sf $(DIR)/zsh/config.zsh ~/.dotzsh
-	@[ -f ~/.zshlocal ] || cp $(DIR)/zsh/local.zsh ~/.zshlocal
+	@echo '------ zsh ------'
+	backup/backup.sh ~/.zshrc
+	rm -rf ~/.zshrc
+	zsh/install.sh $(DIR) $(ZSH_OMZ)
 
 vim:
-	@echo 'Setting up vim...'
-	@rm -rf ~/.vim ~/.vimrc
-	@ln -sf $(DIR)/vim/vimrc ~/.vimrc
-	@ln -sf $(DIR)/vim/vim ~/.vim
+	@echo '------ vim ------'
+	backup/backup.sh ~/.vimrc ~/.vim
+	rm -rf ~/.vim ~/.vimrc
+	echo 'source ~/.dots/vim/vimrc.vim' > ~/.vimrc
+	cp -r vim/vim ~/.vim
+
+vundle:
+	@echo '------ vundle ------'
+	backup/backup.sh ~/.vimrc ~/.vim
+	vim/vundle.sh
 
 git:
-	@echo 'Setting up git...'
-	@git config --global user.name $(GIT_NAME)
-	@git config --global user.email $(GIT_MAIL)
+	@echo '------ git ------'
+	git config --global user.name $(GIT_NAME)
+	git config --global user.email $(GIT_MAIL)
 
 tmux:
-	@echo 'Copying tmux settings...'
-	@cp -f tmux/tmux.conf ~/.tmux.conf
+	@echo '------ tmux ------'
+	backup/backup.sh ~/.tmux.conf
+	rm -rf ~/.tmux.conf
+	cp tmux/tmux.conf ~/.tmux.conf
 
 dirs:
-	@echo 'Setting up my directories...'
-	@[ -d ~/Space ] || mkdir ~/Space
-	@[ -d ~/.bin ] || mkdir ~/.bin
+	@echo '------ dirs ------'
+	test -d ~/Space || mkdir ~/Space
+	test -d ~/.bin || mkdir ~/.bin
 
-update: reset
-	@echo 'Updating...'
-	@git pull origin master
+update: discard
+	@echo '------ update ------'
+	git pull origin master
 
-reset:
-	@echo 'Reseting...'
-	@git add -A
-	@git reset --hard HEAD
-
-all: bash zsh vim tmux
-	@echo Done
+discard:
+	@echo '------ discard ------'
+	git add -A
+	git reset --hard origin/master

@@ -1,27 +1,40 @@
-# Djosix 2017.05.30
+# djosix 2018/08/25
 
-DIR=$1
-ZSH=$2
+dir=$1 # current dir
+omz=$2 # oh my zsh path
 
-test -d $ZSH && exit 1
+if [ ! -d $omz ]; then
+    echo 'OMZ not found, cloning...'
+    git clone --depth=1 https://github.com/robbyrussell/oh-my-zsh.git $omz
+fi
 
-# Download
-git clone --depth=1 https://github.com/robbyrussell/oh-my-zsh.git $ZSH
+# cmd prompt
+echo "link: $omz/themes/djosix.zsh-theme -> $dir/zsh/djosix.zsh-theme"
+ln -sf $dir/zsh/djosix.zsh-theme $omz/themes/djosix.zsh-theme
 
 # zshrc
-TEMPLATE=$ZSH/templates/zshrc.zsh-template
-cat $TEMPLATE | sed "/^export ZSH=/ c\\
-export ZSH=$ZSH
+template=$omz/templates/zshrc.zsh-template
+cat $template | sed "/^export ZSH=/ c\\
+export ZSH=$omz
 " | sed "/^ZSH_THEME=/ c\\
 ZSH_THEME=\"djosix\"
 " | sed "/^# DISABLE_AUTO_UPDATE/ c\\
 DISABLE_AUTO_UPDATE=\"true\"
 " > ~/.zshrc
+echo "create: ~/.zshrc (from $template)"
 
-# Dot zshrc, local zshrc and ls colors
-echo "
+# zshlocal
+if [ ! -f ~/.zshlocal ]; then
+    echo "copy: $dir/zsh/local.zsh -> ~/.zshlocal"
+    cp $dir/zsh/local.zsh ~/.zshlocal
+fi
+
+# includes
+inc="
 # .dots
-source $DIR/zsh/ls_colors.zsh
-source ~/.dotzsh
+source $dir/zsh/ls_colors.zsh
+source $dir/zsh/config.zsh
 source ~/.zshlocal
-" >> ~/.zshrc
+"
+echo "append: ($inc) -> ~/.zshrc"
+echo "$inc" >> ~/.zshrc
