@@ -27,8 +27,7 @@ set whichwrap+=[,]
 " set nowrap
 
 set t_Co=256
-colorscheme codedark
-" colorscheme seti
+colorscheme seti
 " colorscheme jellybeans
 " colorscheme torte
 " hi Search cterm=reverse ctermbg=none ctermfg=none
