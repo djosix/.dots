@@ -17,7 +17,7 @@ set expandtab
 set number
 set ruler
 set cursorline
-set cursorcolumn
+" set cursorcolumn
 
 set hlsearch
 set incsearch
