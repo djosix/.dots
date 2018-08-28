@@ -7,3 +7,5 @@ fi
 if [ ! "$(grep vundle.vim ~/.vimrc)" ]; then
     echo 'source ~/.dots/vim/vundle.vim' >> ~/.vimrc
 fi
+
+vim -c BundleInstall -c qa
