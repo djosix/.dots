@@ -1,0 +1,3 @@
+#!/bin/bash
+
+youtube-dl -q -o- "$*" | mplayer  -af scaletempo  -softvol -softvol-max 400  -cache 8192  -
