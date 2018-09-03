@@ -1,0 +1,2 @@
+"colorscheme codedark
+set whichwrap=[,]

@@ -5,7 +5,10 @@ if [ ! -d ~/.vim/bundle/Vundle.vim ]; then
 fi
 
 if [ ! "$(grep vundle.vim ~/.vimrc)" ]; then
-    echo 'source ~/.dots/vim/vundle.vim' >> ~/.vimrc
+    cat ~/.vimrc | sed '3i \
+source ~/.dots/vim/vundle.vim
+' > /tmp/vimrc.tmp
+    mv /tmp/vimrc.tmp ~/.vimrc
 fi
 
 vim -c BundleInstall -c qa
