@@ -1,4 +1,4 @@
-# djosix 2018/08/25
+#/bin/bash -x
 
 dir=$1 # current dir
 omz=$2 # oh my zsh path
