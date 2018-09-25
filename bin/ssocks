@@ -7,6 +7,22 @@ port=57511
 
 [ "$1" ] && server=`echo $@ | tr ' ' '\n'`
 
+
+clean() {
+    echo Clean up SOCKS settings...
+    if [ `uname` = Darwin ]; then
+        sudo networksetup -setsocksfirewallproxy $network '' ''
+        sudo networksetup -setsocksfirewallproxystate $network off
+    elif [ `uname` = Linux ]; then
+        gsettings set org.gnome.system.proxy mode none
+        gsettings set org.gnome.system.proxy.socks host ''
+        gsettings set org.gnome.system.proxy.socks port ''
+    fi
+    exit
+}
+
+trap clean SIGINT
+
 if [ `uname` = Darwin ]; then
     echo Setup SOCKS proxy...
     sudo networksetup -setsocksfirewallproxy $network $host $port
@@ -17,9 +33,6 @@ if [ `uname` = Darwin ]; then
     echo port=$port
     echo Start connection...
     ssh -ND $port $server
-    echo Clean up SOCKS settings...
-    sudo networksetup -setsocksfirewallproxy $network '' ''
-    sudo networksetup -setsocksfirewallproxystate $network off
 elif [ `uname` = Linux ]; then
     echo Setup SOCKS proxy...
     gsettings set org.gnome.system.proxy.socks host $host
@@ -30,8 +43,7 @@ elif [ `uname` = Linux ]; then
     echo port=$port
     echo Start connection...
     ssh -ND $port $server
-    echo Clean up SOCKS settings...
-    gsettings set org.gnome.system.proxy mode none
-    gsettings set org.gnome.system.proxy.socks host ''
-    gsettings set org.gnome.system.proxy.socks port ''
 fi
+
+clean
+
