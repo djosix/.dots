@@ -1,0 +1,53 @@
+#!/bin/bash
+
+fail() {
+    echo 'Error:' $1
+    exit 1
+}
+
+print_usage() {
+    echo 'Usage: $1 = mount_point, $2 = user@host:path'
+}
+
+which sshfs  > /dev/null || fail 'Command not found: sshfs'
+which umount > /dev/null || fail 'Command not found: umount'
+test `uname` = Linux -o `uname` = Darwin || fail 'Invalid OS'
+test $1 = '-h' && {
+    print_usage
+    exit
+}
+test ! $# = 2 || {
+    print_usage
+    fail 'Wrong number of arguments'
+}
+
+dir=$1
+shift
+
+if test -e $dir; then
+    test -d $dir && newdir=false || fail 'Cannot create directory'
+else
+    mkdir $dir && echo "Created directory: $dir" && newdir=true
+fi
+
+remove_created_dir() {
+    $newdir && rmdir $dir && echo "Removed directory: $dir"
+    return 0
+}
+
+end() {
+    umount -f $dir
+    remove_created_dir
+    exit
+}
+
+trap end SIGINT
+
+sshfs $@ $dir && echo "Mounted at: $dir" || {
+    remove_created_dir && fail 'Failed to mount remote fs'
+}
+
+echo 'Press Ctrl-C to unmount'
+while true; do
+    sleep 2073600
+done
