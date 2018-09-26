@@ -11,43 +11,55 @@ print_usage() {
 
 which sshfs  > /dev/null || fail 'Command not found: sshfs'
 which umount > /dev/null || fail 'Command not found: umount'
-test `uname` = Linux -o `uname` = Darwin || fail 'Invalid OS'
-test $1 = '-h' && {
+uname=`uname`
+[[ $uname = Linux || $uname = Darwin ]] || fail 'Invalid OS: $uname'
+[[ $1 = '-h' ]] && {
     print_usage
     exit
 }
-test ! $# = 2 || {
+[[ $# = 2 ]] || {
     print_usage
-    fail 'Wrong number of arguments'
+    fail "Wrong number of arguments: $#"
 }
 
 dir=$1
 shift
 
-if test -e $dir; then
-    test -d $dir && newdir=false || fail 'Cannot create directory'
+if [[ -e $dir ]]; then
+    if [[ -d $dir ]]; then
+        newdir=false
+    else
+        fail 'Cannot create directory'
+    fi
 else
     mkdir $dir && echo "Created directory: $dir" && newdir=true
 fi
 
 remove_created_dir() {
     $newdir && rmdir $dir && echo "Removed directory: $dir"
-    return 0
 }
 
 end() {
+    echo "Unmounting $dir"
     umount -f $dir
     remove_created_dir
-    exit
+    exit 0
 }
 
 trap end SIGINT
 
-sshfs $@ $dir && echo "Mounted at: $dir" || {
-    remove_created_dir && fail 'Failed to mount remote fs'
-}
+sshfs $@ $dir -f &
+pid=$!
 
+echo "Mounted at: $dir"
+echo "Pid of sshfs: $pid"
 echo 'Press Ctrl-C to unmount'
+
 while true; do
-    sleep 2073600
+    [[ `ps -p $pid | sed -n 2p` ]] || {
+        echo 'Process is dead'
+        remove_created_dir
+        exit
+    }
+    sleep 5
 done
