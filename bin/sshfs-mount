@@ -17,7 +17,7 @@ uname=`uname`
     print_usage
     exit
 }
-[[ $# = 2 ]] || {
+[[ $# -ge 2 ]] || {
     print_usage
     fail "Wrong number of arguments: $#"
 }
