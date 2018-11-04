@@ -21,9 +21,7 @@ def index():
     <form id="uform" action="upload" method="post" enctype="multipart/form-data">
         <input type="file" name="upload" multiple>
     </form>
-    <form id="dform" method="post" action="delete">
-        <input type="hidden" name="delete">
-    </from>
+    <form id="dform" method="post" action="delete"></from>
     <ul>%s</ul>
     <script>
     document.querySelector("input[name=upload]").onchange = function() {
@@ -32,8 +30,10 @@ def index():
     var delFile = function(i) {
         let fileName = document.getElementById("file-" + i).innerText;
         if (confirm("Confirm for deleting " + fileName)) {
-            document.querySelector("input[name=delete]").value = fileName;
-            document.getElementById("dform").submit();
+            let dform = document.getElementById("dform");
+            let action = "delete/" + encodeURIComponent(fileName);
+            dform.setAttribute("action", action);
+            dform.submit();
         }
     };
     </script>
@@ -46,11 +46,9 @@ def upload():
             f.write(u.file.read())
     return bottle.redirect('/')
 
-@bottle.post('/delete')
-def delete():
-    filename = bottle.request.POST.get('delete')
-    if filename is not None:
-        os.remove(filename)
+@bottle.post('/delete/<filename>')
+def delete(filename):
+    os.remove(filename)
     return bottle.redirect('/')
 
 @bottle.get('/view/<filename>')
