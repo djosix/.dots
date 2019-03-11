@@ -1,49 +1,65 @@
-#!/bin/bash
+#!/usr/bin/env python3
 
-network=Wi-Fi
-server=140.115.189.153
-host=127.0.0.1
-port=57511
+import os, getpass
+import functools
+import argparse
+import subprocess as sp
 
-[ "$1" ] && server=`echo $@ | tr ' ' '\n'`
+username = getpass.getuser()
+sysname = os.uname().sysname
+host = '127.0.0.1'
+port = '39889'
+
+assert sysname in ('Linux', 'Darwin'), 'unexpected system'
+
+def get_args():
+    ap = argparse.ArgumentParser()
+    ap.add_argument('--network', '-n', default='Wi-Fi')
+    ap.add_argument('--port', '-p', default='22', metavar='SSH_PORT')
+    ap.add_argument('host', metavar='SSH_HOST')
+    return ap.parse_args()
+
+def call(*args, sudo=False):
+    if username != 'root' and sudo:
+        args = ['sudo', *args]
+    print('[+]', *args)
+    return sp.call(args)
 
 
-clean() {
-    echo Clean up SOCKS settings...
-    if [ `uname` = Darwin ]; then
-        sudo networksetup -setsocksfirewallproxy $network '' ''
-        sudo networksetup -setsocksfirewallproxystate $network off
-    elif [ `uname` = Linux ]; then
-        gsettings set org.gnome.system.proxy mode none
-        gsettings set org.gnome.system.proxy.socks host ''
-        gsettings set org.gnome.system.proxy.socks port ''
-    fi
-    exit
-}
+def clean(args):
+    print('===>', 'Clean up SOCKS settings...')
 
-trap clean SIGINT
+    if sysname == 'Darwin':
+        call('sudo', 'networksetup', '-setsocksfirewallproxy', args.network, '', '')
+        call('sudo', 'networksetup', '-setsocksfirewallproxystate', args.network, 'off')
 
-if [ `uname` = Darwin ]; then
-    echo Setup SOCKS proxy...
-    sudo networksetup -setsocksfirewallproxy $network $host $port
-    sudo networksetup -setsocksfirewallproxystate $network on
-    echo network=$network
-    echo server=$server
-    echo host=$host
-    echo port=$port
-    echo Start connection...
-    ssh -ND $port $server
-elif [ `uname` = Linux ]; then
-    echo Setup SOCKS proxy...
-    gsettings set org.gnome.system.proxy.socks host $host
-    gsettings set org.gnome.system.proxy.socks port $port
-    gsettings set org.gnome.system.proxy mode manual
-    echo server=$server
-    echo host=$host
-    echo port=$port
-    echo Start connection...
-    ssh -ND $port $server
-fi
+    elif sysname == 'Linux':
+        call('gsettings', 'set', 'org.gnome.system.proxy', 'mode', 'none')
+        call('gsettings', 'set', 'org.gnome.system.proxy.socks', 'host', '')
+        call('gsettings', 'set', 'org.gnome.system.proxy.socks', 'port', '')
 
-clean
 
+def start(args):
+    print('===>', 'Setting up SOCKS proxy...')
+
+    if sysname == 'Darwin':
+        call('sudo', 'networksetup', '-setsocksfirewallproxy', args.network, host, port)
+        call('sudo', 'networksetup', '-setsocksfirewallproxystate', args.network, 'on')
+        print('===>', 'Start connection...')
+        call('ssh', '-ND', port, args.host, '-p', args.port)
+    elif sysname == 'Linux':
+        call('gsettings', 'set', 'org.gnome.system.proxy.socks', 'host', host)
+        call('gsettings', 'set', 'org.gnome.system.proxy.socks', 'port', port)
+        call('gsettings', 'set', 'org.gnome.system.proxy', 'mode', 'manual')
+        print('===>', 'Start connection...')
+        call('ssh', '-ND', port, args.host, '-p', args.port)
+
+
+if __name__ == '__main__':
+    args = get_args()
+    try:
+        start(args)
+    except:
+        print(' (ABORT)')
+    finally:
+        clean(args)
