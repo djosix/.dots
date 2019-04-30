@@ -54,7 +54,8 @@ dirs:
 
 update: discard
 	@echo '===> update'
-	@git pull origin master
+	@git fetch --all
+	@git reset --hard origin/master
 
 discard:
 	@echo '===> discard'
