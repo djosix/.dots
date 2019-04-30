@@ -5,21 +5,22 @@
   ```
   Select targets to run:
 
-    bash              Install zsh config files
-    zsh               Install zsh config files
-    vim               Install vim config files
-    tmux              Install tmux config file
+    bash          Install zsh config files
+    zsh           Install zsh config files
+    vim           Install vim config files
+    tmux          Install tmux config file
 
-    git               Setup name and email for Git
-    vundle            Install Vundle and my plugins
-    dirs              Create useful directories
+    git           Setup name and email for Git
+    vundle        Install Vundle and my plugins
+    dirs          Create useful directories
 
-    part (bash, zsh, vim, tmux)
-    all (bash, zsh, vim, tmux, git, vundle, dirs)
+    part          Run bash, zsh, vim, and tmux
+    all           Run bash, zsh, vim, tmux, git, vundle, and dirs
 
-    update            Discard and update
-    discard           Discard changes in .dots
-    remove_backups    Remove backup files
+    update        Discard and update
+    discard       Discard changes in .dots
+    cleanup       Remove backup files
+
   ```
 
 - Quick install

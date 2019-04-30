@@ -62,6 +62,6 @@ discard:
 	@git add -A
 	@git reset --hard origin/master
 
-remove_backups:
-	@echo '===> remove_backups'
-	@rm -rfv backup/_*
+cleanup: backup/*
+	@echo '===> cleanup'
+	@rm -rfv backup/*
