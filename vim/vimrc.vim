@@ -8,11 +8,11 @@ set smartindent
 
 set smarttab
 
-set shiftwidth=4 " width of an indent
-set softtabstop=4 " number of spaces of an indent (expandtab)
-set tabstop=4 " number of visual spaces for an indent
-" set noexpandtab " input spaces instead of a <TAB>
-set expandtab
+set shiftwidth=4 " width of an indent when using < >
+set softtabstop=4 " number of spaces inserted (when expandtab)
+set tabstop=8 " width of a <TAB> character
+" set noexpandtab 
+set expandtab " input spaces instead of a <TAB>
 
 set number
 set ruler
@@ -25,6 +25,8 @@ set incsearch
 set mouse=a
 set whichwrap+=[,]
 " set nowrap
+
+filetype plugin indent on
 
 set t_Co=256
 colorscheme seti
@@ -47,4 +49,7 @@ command MA :set mouse=a
 
 if has("autocmd")
     au BufReadPost * if line("'\"") > 0 && line("'\"") <= line("$") | exe "normal! g`\"" | endif
+
+    autocmd FileType ruby,html,javascript set expandtab shiftwidth=2 softtabstop=2 tabstop=8
+    "autocmd FileType makefile set noexpandtab shiftwidth=8 softtabstop=8 tabstop=8
 endif
