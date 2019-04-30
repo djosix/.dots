@@ -23,10 +23,8 @@ set hlsearch
 set incsearch
 
 set mouse=a
-set whichwrap+=[,]
+set whichwrap=b,s,<,>,[,] 
 " set nowrap
-
-filetype plugin indent on
 
 set t_Co=256
 colorscheme seti

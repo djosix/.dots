@@ -1,4 +1,7 @@
-# djosix 2018/08/25
+#!/bin/bash
+#
+# Helper script from oh-my-zsh
+#
 
 TEST_CURRENT_SHELL=$(expr "$SHELL" : '.*/\(.*\)')
 if [ "$TEST_CURRENT_SHELL" != "zsh" ]; then

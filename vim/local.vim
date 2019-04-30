@@ -1,2 +1,1 @@
 "colorscheme codedark
-set whichwrap=[,]
