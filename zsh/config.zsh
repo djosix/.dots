@@ -9,8 +9,8 @@ export LSCOLORS=Exfxcxdxbxegedabagacad
 #
 # PATH settings
 #
-PATH="~/.dots/bin:$PATH"
-test -d ~/.bin && PATH="~/.bin:$PATH"
+PATH="$HOME/.dots/bin:$PATH"
+test -d $HOME/.bin && PATH="$HOME/.bin:$PATH"
 export PATH
 
 
