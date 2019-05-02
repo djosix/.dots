@@ -35,9 +35,12 @@ ip6tables -t nat -A POSTROUTING -s fd6a:6ce3:c8d8:7caa::/64 -o eth0 -j MASQUERAD
 # hotfix for openssl `unable to write 'random state'` stderr
 SHARED_SECRET="123$(openssl rand -base64 32 2>/dev/null)"
 if [ -d /host_cfg ]; then
-    if [ -f /host_cfg/shared_secret ]
-    then SHARED_SECRET=`cat /host_cfg/shared_secret`
-    else echo "$SHARED_SECRET" > /host_cfg/shared_secret
+    if [ -f /host_cfg/shared_secret ]; then
+        SHARED_SECRET=`cat /host_cfg/shared_secret`
+    else
+        echo "$SHARED_SECRET" > /host_cfg/shared_secret
+        chmod a-rx /host_cfg/shared_secret
+        chmod a+w /host_cfg/shared_secret
     fi
 fi
 [ -f /etc/ipsec.secrets ] || echo ": PSK \"${SHARED_SECRET}\"" > /etc/ipsec.secrets

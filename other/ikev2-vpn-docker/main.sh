@@ -32,7 +32,7 @@ case $1 in
         CONTAINER=`docker ps -aqf NAME=$NAME`
         [ ! "no$CONTAINER" = no ] && docker rm -f $CONTAINER
         ;;
-    info)
+    ps)
         docker ps -af NAME=ikev2-vpn-server
         ;;
     config)
@@ -46,6 +46,6 @@ case $1 in
             $IMAGE dots-generate-mobileconfig > $CLIENT_CONF
         ;;
     *)
-        echo "Usage: $0 <build|start|stop|info|config>"
+        echo "Usage: $0 <build|start|stop|ps|config>"
         ;;
 esac
