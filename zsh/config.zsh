@@ -113,6 +113,9 @@ if [ `uname` = Linux ]; then
     alias ram="mkdir -p /dev/shm/$USER; cd /dev/shm/$USER"
     alias ls="ls --color=always"
 elif [ `uname` = Darwin ]; then
+    alias trash=_mac_move_to_trash
+    alias busb=_busb
+    alias ramdisk=_ramdisk
     alias dds="find . -name .DS_Store -exec rm -v {} +"
     alias i="brew install"
 fi
@@ -121,4 +124,4 @@ fi
 #
 # Others
 #
-EDITOR=vim
+export EDITOR=vim
