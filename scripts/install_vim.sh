@@ -4,15 +4,15 @@
 #
 
 vimrc_src=vim/vimrc.vim
-vimrc=~/.vimrc
+vimrc=$HOME/.vimrc
 
 vimrc_local_src=vim/local.vim
-vimrc_local=~/.vimrc.local
+vimrc_local=$HOME/.vimrc.local
 
 vim_src=vim/vim
-vim=~/.vim
+vim=$HOME/.vim
 
-dots=~/.dots/
+dots=$HOME/.dots
 
 
 echo "@@@ Writing $vimrc"
