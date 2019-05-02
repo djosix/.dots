@@ -1,0 +1,5 @@
+#!/bin/bash
+
+WORKDIR=$PWD
+cd $HOME/.dots/other/openvpn-docker
+WORKDIR=$WORKDIR bash main.sh $@
