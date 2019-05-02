@@ -69,6 +69,14 @@ mcd() {
     cd $@
 }
 
+cpto() {
+    [[ $# < 3 ]] && {
+        echo 'Usage: cpto HOST DST ...PATHS'
+        return
+    }
+    remote=$1; shift; dst=$1; shift
+    rsync -avzh $@ $remote:$dst
+}
 
 #
 # Git shortcuts
