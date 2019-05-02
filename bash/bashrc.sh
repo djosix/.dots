@@ -5,4 +5,3 @@ else
 fi
 
 source ~/.dots/zsh/config.zsh
-source ~/.dots/zsh/ls_colors.zsh
