@@ -9,10 +9,10 @@ HOST_CONF=$PWD/config
 CLIENT_CONF=${WORKDIR:-$PWD}/ikev2-vpn.mobileconfig
 
 case $1 in
-    build)
+    build) # build docker image
         docker build -t $IMAGE .
         ;;
-    start)
+    start) # start docker container
         CONTAINER=`docker ps -aqf NAME=$NAME`
         if [ "no$CONTAINER" = no ]; then
             docker run \
@@ -28,14 +28,14 @@ case $1 in
             echo "Already running as $CONTAINER"
         fi
         ;;
-    stop)
+    stop) # stop docker container
         CONTAINER=`docker ps -aqf NAME=$NAME`
         [ ! "no$CONTAINER" = no ] && docker rm -f $CONTAINER
         ;;
-    ps)
+    ps) # show container process
         docker ps -af NAME=ikev2-vpn-server
         ;;
-    config)
+    config) # generate client config file
         read -p 'Host: ' HOST
         read -p 'Connection Name: ' CONN_NAME
         read -p 'Profile Name: ' PROFILE_NAME
