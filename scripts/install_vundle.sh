@@ -16,7 +16,7 @@ fi
 
 if [ ! "$(grep vundle.vim $vimrc)" ]; then
     echo "@@@ Adding Vundle script to $vimrc"
-    tmpfile=/tmp/__vimrc_tmpfile
+    tmpfile=.vimrc.temp
     cat $vimrc | sed $'3i \\\nsource '"$vundle_vim_inc"$'\n' > $tmpfile
     mv $tmpfile $vimrc
 fi
