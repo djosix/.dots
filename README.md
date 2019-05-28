@@ -5,7 +5,7 @@
   ```
   Select targets to run:
 
-    bash          Install zsh config files
+    bash          Install bash config files
     zsh           Install zsh config files
     vim           Install vim config files
     tmux          Install tmux config file
