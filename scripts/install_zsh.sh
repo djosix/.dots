@@ -22,16 +22,22 @@ dots=~/.dots
 #
 # oh my zsh
 #
-if [ ! -d $omz ]; then
-    echo "@@@ Installing oh-my-zsh from $omz_repo"
-    git clone --depth=1 $omz_repo $omz
-fi
+echo "@@@ Installing oh-my-zsh from $omz_repo"
+rm -rf $omz
+git clone --depth 1 $omz_repo $omz
 
 #
 # command prompt theme
 #
 echo "@@@ Linking $zsh_theme -> $zsh_theme_src"
 ln -sf $dots/$zsh_theme_src $zsh_theme
+
+#
+# zsh plugins
+#
+echo "@@@ Installing ZSH plugins"
+git clone --depth 1 https://github.com/zsh-users/zsh-autosuggestions $omz/custom/plugins/zsh-autosuggestions
+git clone --depth 1 https://github.com/zsh-users/zsh-completions $omz/custom/plugins/zsh-completions
 
 #
 # zshrc
@@ -43,7 +49,9 @@ export ZSH=\"$omz\"
 ZSH_THEME=\"djosix\"
 " | sed "/^# DISABLE_AUTO_UPDATE/ c\\
 DISABLE_AUTO_UPDATE=\"true\"
-" > $zshrc
+" | sed $'/^plugins=/ c\\
+plugins=\\(zsh-autosuggestions zsh-completions)
+' > $zshrc
 
 inc="
 #

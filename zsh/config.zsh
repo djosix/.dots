@@ -81,6 +81,7 @@ cpto() {
 #
 # Git shortcuts
 #
+alias ga="git add"
 alias gaa="git add -A"
 alias gau="git add -u"
 alias gst="git status"
@@ -95,6 +96,7 @@ alias gck="git checkout"
 alias gbh="git branch"
 alias gpsh="git push"
 alias gpom="git push origin master"
+alias ggg="gaa; gct; gpom"
 alias gplom="git pull origin master"
 alias grst="git reset"
 
