@@ -2,8 +2,8 @@
 
 rsm_temp_dir=${RSM_DIR:-/tmp/.rsm}
 rsm_tmux_sock=$rsm_temp_dir/tmux.sock
-max_connections=${MAX_CONN:-128}
-max_recv_mb=${MAX_RECV:-64}
+max_connections=${RSM_MAX_CONN:-128}
+max_recv_mb=${RSM_MAX_RECV:-64}
 
 top_pid=$$
 [[ $max_recv_mb ]] \
@@ -104,6 +104,14 @@ rsm_help() {
     rsm c[lean] PORT    Clean sockets for PORT
     rsm c[lean]         Clean all sockets
     rsm h[elp]          Show this help message
+
+    Configurable Variables:
+
+        RSM_DIR         Where the rsm sockets be stored (default: /tmp/.rsm)
+        RSM_MAX_CONN    Maximum number of connections (default: 128)
+        RSM_MAX_RECV    Maximum receiving MB (default: 64)
+        RSM_HOOK        Command to eval when a client connects
+        RSM_WITH        Command to eval when rsm starts
 "
 }
 
@@ -122,7 +130,7 @@ _start() {
     local session=rsm-$port
     mkdir -p $dir
     tmux -S $rsm_tmux_sock new -s $session -n listener $rsm_tmux_option "
-    eval \$WITH &
+    eval \$RSM_WITH &
     echo Starting...
     echo
     echo   '   =============================================== '
@@ -134,7 +142,7 @@ _start() {
         IP=\$NCAT_REMOTE_ADDR
         PORT=\$NCAT_REMOTE_PORT
         src=\$IP:\$PORT
-        eval \$HOOK
+        eval \$RSM_HOOK
         name=client-\${src}-\$(date +%Y.%m.%d-%H:%M:%S)
         tmux -S $rsm_tmux_sock new-window -t $session -n \$src \"
             echo \$(date), connection from: \$src
