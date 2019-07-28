@@ -1,0 +1,9 @@
+#!/bin/bash
+
+if [ `uname` = Darwin ]; then
+    $(dirname $(readlink $(which javac)))/java_home
+elif [ `uname` = Linux ]; then
+    dirname $(dirname $(readlink -f $(which javac)))
+else
+    :
+fi
