@@ -1,9 +1,17 @@
 #!/bin/bash
 
-echo '[TCP]'
-sudo lsof -nP -i4TCP -i6TCP | grep --color -E 'LISTEN|$'
-echo
-echo '[UDP]'
-sudo lsof -nP -i4UDP -i6UDP | grep --color -E 'LISTEN|$'
+[[ $1 ]] && X=$1 || X='tu'
+
+if [[ $X == *"t"* ]]; then
+    echo '[TCP]'
+    sudo lsof -nP -i4TCP -i6TCP | grep --color -E 'LISTEN|$'
+    echo
+fi
+
+if [[ $X == *"u"* ]]; then
+    echo '[UDP]'
+    sudo lsof -nP -i4UDP -i6UDP | grep --color -E 'LISTEN|$'
+    echo
+fi
 
 
