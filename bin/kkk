@@ -1,7 +1,10 @@
 #!/bin/bash
 
 X=$1
-[[ $X ]] || X='bash|tsh'
+
+[[ $X ]] || {
+    echo 'Error: require a keyword argument'
+}
 
 pids=`sudo ps ax \
     | sed 1d \
