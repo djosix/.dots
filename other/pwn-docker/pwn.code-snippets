@@ -1,0 +1,10 @@
+{
+	"Pwn template code": {
+		"scope": "python",
+		"prefix": "pwn",
+		"body": [
+			"#!/usr/bin/env python3\n\nfrom pwn import *\n\ncontext.arch = 'amd64'\ncontext.terminal = ['tmux', 'splitw', '-h']\n\n# r = remote('127.0.0.1', $3) # ssh -NL $3:$2:$3\n# r = remote('$2', $3)\n# r = process('$1')\nr = gdb.debug('$1', execute='''\n\n''')\n\n\n\nr.interactive()\n"
+		],
+		"description": "Pwn template code"
+	}
+}
