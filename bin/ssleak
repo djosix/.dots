@@ -1,2 +1,2 @@
 #!/bin/bash
-openssl s_client -showcerts -connect $@ < /dev/null | openssl x509 -text | less -p "Subject Alternativer Name"
+openssl s_client -showcerts -connect $@ < /dev/null | openssl x509 -text | less -p "Subject Alternative Name"
