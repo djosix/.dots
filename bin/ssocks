@@ -8,7 +8,7 @@ import subprocess as sp
 username = getpass.getuser()
 sysname = os.uname().sysname
 host = '127.0.0.1'
-port = '39889'
+port = '9050'
 
 assert sysname in ('Linux', 'Darwin'), 'unexpected system'
 
