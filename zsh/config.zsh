@@ -27,10 +27,20 @@ export LANGUAGE=en_US.UTF-8
 # Aliases and shortcuts
 #
 alias ls="ls -G"
-alias d="rm -rf"
 alias l="ls -F"
 alias la="ls -alh"
 alias ll="ls -lh"
+function b() {
+    test $# = 0 && return
+    dir=/tmp/.backup-$USER/$(date +'%Y%m%d_%H%M%S')_$(LC_ALL=C LC_CTYPE=C tr -dc 'a-zA-Z0-9' < /dev/urandom | head -c8)
+    mkdir -p $dir && realpath . > $dir/path.txt && tar cf $dir/backup.tar $@ && rm -rf $@
+}
+function cb() {
+    rm -rf /tmp/.backup-$USER
+}
+function d() {
+    rm -rf $@
+}
 alias e="exit"
 alias m="make"
 alias v="vim"
@@ -59,17 +69,14 @@ alias du="du -h"
 alias df="df -h"
 alias dr='docker run -it --rm -v $PWD:/root/workdir -w /root/workdir'
 alias drs='dr --cap-add=SYS_PTRACE --security-opt seccomp=unconfined'
-
-findname() {
+function findname() {
     find . -name "*$1*"
 }
-
-mcd() {
+function mcd() {
     mkdir -p $@
     cd $@
 }
-
-cpto() {
+function cpto() {
     [[ $# < 3 ]] && {
         echo 'Usage: cpto HOST DST ...PATHS'
         return
@@ -89,7 +96,7 @@ alias glg="git log"
 alias ggi="git init"
 alias gra="git remote add"
 alias gcm="git commit -m"
-alias gct='git commit -m "$(date +"Update %Y/%m/%d %H:%M:%S")"'
+alias gct='git commit -m "$(date +"Commit %Y/%m/%d %H:%M:%S")"'
 alias gcl="git clone"
 alias gcl1="gcl --depth 1"
 alias gck="git checkout"
@@ -105,23 +112,35 @@ alias grst="git reset"
 # Native aliases
 #
 [ "$USER" = root ] || SUDO=sudo
-if [ `uname` = Linux ]; then
-    alias i="$SUDO apt install -y"
-    alias u="$SUDO apt update && sudo apt upgrade -y"
-    alias sctl="$SUDO systemctl"
-    alias ssv="$SUDO service"
-    alias sv="$SUDO service"
-    alias ctl="$SUDO systemctl"
-    alias ram="mkdir -p /dev/shm/$USER; cd /dev/shm/$USER"
-    alias ls="ls --color=always"
-elif [ `uname` = Darwin ]; then
-    alias trash=_mac_move_to_trash
-    alias busb=_busb
-    alias ramdisk=_ramdisk
-    alias dds="find . -name .DS_Store -exec rm -v {} +"
-    alias i="brew install"
-fi
+uname="$(uname)"
 
+case "$(uname)" in
+    Linux)
+        alias ls="ls --color=always"
+        if which apt > /dev/null; then
+            alias i="$SUDO apt install -y"
+            alias u="$SUDO apt update && sudo apt upgrade -y"
+        fi
+        if which systemctl > /dev/null; then
+            alias sctl="$SUDO systemctl"
+            alias ctl="systemctl"
+        fi
+        if which service > /dev/null; then
+            alias ssv="$SUDO service"
+            alias sv="service"
+        fi
+        if test -e /dev/shm; then
+            alias ram="mkdir -p /dev/shm/$USER; cd /dev/shm/$USER"
+        fi
+        ;;
+    Darwin)
+        alias trash=_mac_move_to_trash
+        alias busb=_busb
+        alias ramdisk=_ramdisk
+        alias dds="find . -name .DS_Store -exec rm -v {} +"
+        which brew > /dev/null && alias i="brew install"
+        ;;
+esac
 
 #
 # Others
