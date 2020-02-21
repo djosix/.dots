@@ -117,28 +117,46 @@ uname="$(uname)"
 case "$(uname)" in
     Linux)
         alias ls="ls --color=always"
-        if which apt > /dev/null; then
+        if which apt > /dev/null 2>&1; then
             alias i="$SUDO apt install -y"
-            alias u="$SUDO apt update && sudo apt upgrade -y"
+            alias u="$SUDO apt update && $SUDO apt upgrade -y"
         fi
-        if which systemctl > /dev/null; then
+        if which systemctl > /dev/null 2>&1; then
             alias sctl="$SUDO systemctl"
             alias ctl="systemctl"
         fi
-        if which service > /dev/null; then
+        if which service > /dev/null 2>&1; then
             alias ssv="$SUDO service"
             alias sv="service"
         fi
         if test -e /dev/shm; then
             alias ram="mkdir -p /dev/shm/$USER; cd /dev/shm/$USER"
         fi
+        if which ip > /dev/null 2>&1; then
+            function addr() {
+                ip -4 a | grep -v valid | sed '
+                s/^[0-9]\+: \([_a-zA-Z0-9-]\+\): .\+$/\1:\t/g
+                s/.\+inet \([0-9\.\/]\+\) .\+$/ \1/g
+                s/\]\n//g'
+            }
+        elif which ifconfig > /dev/null 2>&1; then
+            :
+        fi
+        
         ;;
     Darwin)
         alias trash=_mac_move_to_trash
         alias busb=_busb
         alias ramdisk=_ramdisk
         alias dds="find . -name .DS_Store -exec rm -v {} +"
-        which brew > /dev/null && alias i="brew install"
+        which brew > /dev/null \
+            && alias i="brew install"
+
+        function addr() {
+            ifconfig -a inet 2>&1 \
+            | grep -vE '(POINTOPOINT|SIMPLEX|options)' \
+            | sed 's/.*inet.\([0-9\.]*\).*/ \1/ ; s/\([_a-zA-Z0-9-]*:\).*/\1/'
+        }
         ;;
 esac
 
