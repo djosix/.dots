@@ -22,8 +22,6 @@ set cursorline
 set hlsearch
 set incsearch
 
-set mouse=a
-set whichwrap=b,s,<,>,[,] 
 " set nowrap
 
 set t_Co=256
