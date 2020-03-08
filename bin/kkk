@@ -4,6 +4,7 @@ X=$1
 
 [[ $X ]] || {
     echo 'Error: require a keyword argument'
+    exit
 }
 
 pids=`sudo ps ax \
