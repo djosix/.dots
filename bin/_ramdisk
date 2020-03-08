@@ -10,19 +10,15 @@
 ARGS=2
 E_BADARGS=99
 
+
+
 if [ $# = 0 ] # correct number of arguments to the script;
 then
-    [ -d '/Volumes/RamDisk' ] \
-        && echo /Volumes/RamDisk \
-        && exit
-    echo " "
-    echo "To create a RAMDISK -> Usage: `basename $0` create SIZE_IN_MB"
-    echo "To delete a RAMDISK -> Usage: `basename $0` delete"
-    echo " "
-    echo "Currently this script only supports one RAMDISK. Will update soon."
-    echo "DISK_ID can be shown with 'mount'. usually /dev/disk* where * is a number"
-    echo " "
-    echo " "
+    echo 'Usage:'
+    echo "$ `basename $0`"
+    echo "$ `basename $0` show"
+    echo "$ `basename $0` create SIZE_IN_MB"
+    echo "$ `basename $0` delete"
     exit $E_BADARGS
 fi
 
@@ -34,6 +30,13 @@ then
     DISK_ID=$(hdiutil attach -nomount ram://$RAMDISK_SECTORS)
     echo "Disk ID is :" $DISK_ID
     diskutil erasevolume HFS+ "RamDisk" ${DISK_ID}
+fi
+
+if [ "$1" = 'show' ]
+then
+    [ -d '/Volumes/RamDisk' ] \
+        && echo /Volumes/RamDisk \
+        || echo 'Error: Not created' >&2
 fi
 
 if [ "$1" = "delete" ]
