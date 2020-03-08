@@ -3,7 +3,10 @@
 #
 # Author: Igor Tarasov <tarasov.igor@gmail.com>
 
-[ "$(which wine)" ] || exit
+[ "$(which wine)" ] || {
+    echo 'No wine found, exiting.'
+    exit
+}
 
 WINE=${WINE:-wine}
 WINEPREFIX=${WINEPREFIX:-$HOME/.wine}
