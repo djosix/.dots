@@ -22,7 +22,7 @@ if [[ $pids ]]; then
     read -p "Kill $pids [Y/n] " K
     if [[ $K != n && $K != N ]]; then
         echo "Killing $pids"
-        kill -9 $pids
+        sudo kill -9 $pids
     fi
 fi
 
