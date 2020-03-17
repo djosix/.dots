@@ -6,6 +6,8 @@ set autoindent
 set smartindent
 " set cindent
 
+set whichwrap=b,s,<,>,[,]
+
 set smarttab
 
 set shiftwidth=4 " width of an indent when using < >
