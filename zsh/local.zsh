@@ -1,5 +1,8 @@
 #!/bin/bash
 
+#source $HOME/.dots/zsh/mouse.zsh && zle-toggle-mouse
+
+
 #PATH=":$PATH"
 #export PATH
 
