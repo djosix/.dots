@@ -47,7 +47,7 @@ command MA :set mouse=a
 
 if has("autocmd")
     autocmd BufReadPost * if line("'\"") > 0 && line("'\"") <= line("$") | exe "normal! g`\"" | endif
-    autocmd FileType ruby,html,javascript set expandtab shiftwidth=2 softtabstop=2 tabstop=8
+    autocmd FileType ruby,html,javascript,yaml,json,vue,css,scss,sass set expandtab shiftwidth=2 softtabstop=2 tabstop=8
     autocmd FileType go set noexpandtab shiftwidth=4 softtabstop=8 tabstop=4
     "autocmd FileType makefile set noexpandtab shiftwidth=8 softtabstop=8 tabstop=8
 endif
