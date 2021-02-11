@@ -30,7 +30,6 @@ export GOPATH="$HOME/.go" # default GOPATH
 function chkcmd() { command -v $1 >/dev/null 2>&1; }
 
 # ls
-alias ls="ls -G"
 alias l="ls -F"
 alias la="ls -alh"
 alias ll="ls -lh"
@@ -100,6 +99,7 @@ alias grst="git reset"
 [[ $USER = root ]] && SUDO=aa || SUDO=sudo
 case "$(uname)" in
     Linux)
+        alias ls="ls --color=auto"
         alias dfc='df -h -xtmpfs -xsquashfs -xdevtmpfs' # df clean
 
         if test -e /dev/shm; then
@@ -120,6 +120,7 @@ case "$(uname)" in
         ;;
 
     Darwin)
+        alias ls="ls -G"
         alias trash=_mac_move_to_trash
         alias busb=_busb
         alias ramdisk=_ramdisk
