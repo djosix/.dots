@@ -7,4 +7,4 @@ test $UID -eq 0 && user_color='red'
 PROMPT="
 %{$fg_bold[$label_color]%}%n@%m \
 %{$fg_bold[$user_color]%}%d
-%{$fg_bold[$label_color]%}%(!.#.>) %{$reset_color%}"
+%{$fg_bold[$label_color]%}%(!.#.$) %{$reset_color%}"
