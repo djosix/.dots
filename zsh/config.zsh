@@ -100,7 +100,7 @@ alias grst="git reset"
 case "$(uname)" in
     Linux)
         alias ls="ls --color=auto"
-        alias dfc='df -h -xtmpfs -xsquashfs -xdevtmpfs' # df clean
+        alias dfc='df -h -x{overlay,tmpfs,squashfs,devtmpfs}' # df clean
 
         if test -e /dev/shm; then
             alias ram="mkdir -p /dev/shm/$USER; cd /dev/shm/$USER"
