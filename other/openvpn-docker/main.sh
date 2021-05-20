@@ -2,7 +2,7 @@
 
 IMAGE='kylemanna/openvpn:2.4'
 NAME='dots-openvpn-server'
-VOLUME='dots-openvpn-volume'
+VOLUME="$PWD/volume"
 DEFAULT_CLIENT="$USER@`hostname`"
 : ${WORKDIR='.'}
 
@@ -13,7 +13,7 @@ case $1 in
             echo 'Error: Expect a domain name as argument.' >&2
             exit
         }
-        docker volume create --name $VOLUME
+        mkdir -p $VOLUME
         docker run -v $VOLUME:/etc/openvpn --rm $IMAGE ovpn_genconfig -u udp://$DOMAIN
         docker run -v $VOLUME:/etc/openvpn --rm -it $IMAGE ovpn_initpki
         ;;
@@ -28,7 +28,7 @@ case $1 in
         docker run \
             --name $NAME \
             --cap-add=NET_ADMIN \
-            --detach --rm \
+            --detach --restart unless-stopped \
             --volume $VOLUME:/etc/openvpn \
             --publish 1194:1194/udp \
             $IMAGE
