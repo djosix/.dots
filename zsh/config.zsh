@@ -42,9 +42,6 @@ function b() {
 }
 alias cb="rm -rf /tmp/.backup-$USER"
 
-# rm
-alias d="rm -rf"
-
 # cd
 alias cs="cd ~/Space"
 alias cds="cd ~/Dropbox/Space"
