@@ -1,0 +1,80 @@
+#!/bin/bash
+
+error() {
+    echo '[error]' $@
+    exit 1
+}
+info() {
+    echo '[info]' $@
+}
+
+print_usage() {
+    local prog=$(basename $0)
+    echo 'Usage:'
+    echo
+    echo "    \$ $prog <mount_point> <[user@]host:path> [...ssh_args]"
+    echo
+}
+
+check_command() {
+    hash "$1" &>/dev/null || error "'$1' is required for this script"
+}
+check_command sshfs
+check_command fusermount
+
+uname=`uname`
+[[ $uname = Linux || $uname = Darwin ]] || error "Invalid OS: $uname"
+
+[[ $1 = '-h' || $1 = '--help' ]] && {
+    print_usage
+    exit
+}
+[[ $# -ge 2 ]] || {
+    print_usage
+    error "Wrong number of arguments: $#"
+}
+
+dir=$1
+
+try_unmount_dir() {
+    fusermount -u $dir &> /dev/null
+}
+try_unmount_dir && info "Unmounted: $dir"
+
+shift
+full_dir_path="$(realpath $dir)"
+
+
+if [[ -d $dir ]]; then
+    new_directory_created=false
+elif mkdir $dir; then
+    info "Created: $full_dir_path"
+    new_directory_created=true
+else
+    error "Cannot create directory"
+fi
+
+try_remove_created_dir() {
+    $new_directory_created && rmdir $dir
+}
+
+end() {
+    echo ' (interrupt)'
+    # kill -15 $pid
+    try_unmount_dir && info "Unmounted: $full_dir_path"
+    wait
+    try_remove_created_dir && info "Removed: $full_dir_path"
+    exit 0
+}
+
+trap end SIGINT
+
+info 'Press Ctrl-C to unmount'
+
+while true; do
+    sshfs $@ $dir -f &
+    pid=$!
+    info "Process: $pid"
+    wait
+    try_unmount_dir && info "Unmounted: $full_dir_path"
+done
