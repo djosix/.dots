@@ -26,3 +26,6 @@
 #        nvm current
 #    fi
 #}
+#node() { { hash $0 || nvm } >& /dev/null && command $0 $@; }
+#npm() { { hash $0 || nvm } >& /dev/null && command $0 $@; }
+#npx() { { hash $0 || nvm } >& /dev/null && command $0 $@; }
