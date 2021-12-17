@@ -15,7 +15,7 @@
 #}
 
 #nvm() {
-#    [ -d "$HOME/.nvm" ] || curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.33.11/install.sh | bash
+#    [ -d "$HOME/.nvm" ] || curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/master/install.sh | bash
 #    unset -f nvm
 #    export NVM_DIR="$HOME/.nvm"
 #    [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
