@@ -50,7 +50,7 @@ alias cdl="cd ~/Downloads"
 alias cdt="cd ~/Tools"
 alias cdc="cd ~/Documents"
 alias cdb="cd ~/Dropbox"
-alias ctp="mkdir -p /tmp/$USER; cd /tmp/$USER"
+alias tmp="mkdir -p /tmp/$USER; cd /tmp/$USER"
 
 # youtube-dl
 if chkcmd youtube-dl; then
