@@ -4,5 +4,5 @@
     echo Error: this command is only for Linux >&2
     exit 1
 }
-mount | grep $(df -P "$1" | tail -n 1 | awk '{print $1}')
+mount | grep $(df -P "${1:-.}" | tail -n 1 | awk '{print $1}')
 
