@@ -1,0 +1,2 @@
+#!/bin/bash
+echo "$1"|md5sum|rev|xxd -r -p|sha1sum|rev|xxd -r -p|md5sum|rev|xxd -r -p|base64|sed 's/[^a-zA-Z0-9]//g'
