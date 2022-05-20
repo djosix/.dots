@@ -1,0 +1,21 @@
+#!/bin/bash -e
+
+prog=$(basename $1)
+dir="./static_$prog"
+echo "==> Packing '$1' to '$dir'..."
+
+mkdir -v $dir
+
+for lib in $(ldd $1 | grep -o '=> [^ ]*' | sed 's/=> //g'); do
+    cp -v $lib $dir
+done
+
+cp -v $1 $dir
+
+echo "#!/bin/bash
+DIR=\$(dirname \$0)
+LD_LIBRARY_PATH=\$DIR \$DIR/$prog \$@
+" > $dir/run.sh
+
+chmod -v +x $dir/run.sh
+
