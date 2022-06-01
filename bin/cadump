@@ -1,0 +1,8 @@
+#!/bin/bash -e
+
+{
+    echo | \
+    openssl s_client -showcerts -connect $@ | \
+    openssl x509 -text | \
+    sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p'
+} 2>/dev/null
