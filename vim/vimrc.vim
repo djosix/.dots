@@ -50,6 +50,8 @@ command NI :set noai nosi
 command MN :set mouse=
 command MA :set mouse=a
 
+filetype plugin indent on
+
 if has("autocmd")
     autocmd BufReadPost * if line("'\"") > 0 && line("'\"") <= line("$") | exe "normal! g`\"" | endif
     autocmd FileType ruby,html,javascript,yaml,json,vue,css,scss,sass set expandtab shiftwidth=2 softtabstop=2 tabstop=8
