@@ -33,6 +33,10 @@ colorscheme seti
 " colorscheme torte
 " hi Search cterm=reverse ctermbg=none ctermfg=none
 
+if has('termguicolors')
+    set termguicolors
+endif
+
 noremap <C-t> :NERDTreeToggle<CR>
 let NERDTreeMapOpenInTab='<space>'
 
