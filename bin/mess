@@ -1,2 +1,24 @@
 #!/bin/bash
-echo "$1"|md5sum|rev|xxd -r -p|sha1sum|rev|xxd -r -p|md5sum|rev|xxd -r -p|base64|sed 's/[^a-zA-Z0-9]//g'
+
+{
+    echo -n ''
+    {
+        echo -n 'Me55'
+        {
+            echo -n 'Me55Me55'
+            {
+                echo -n 'Me55Me55Me55'
+                {
+                    echo -n 'Me55Me55Me55Me55'
+                    for s in $@; do echo "Me55Me55Me55Me55Me55$s"; done
+                    echo -n 'Me55Me55Me55Me55'
+                } | md5sum | rev | xxd -r -p
+                echo -n 'Me55Me55Me55'
+            } | sha1sum | rev | xxd -r -p
+            echo -n 'Me55Me55'
+        } | md5sum | rev | xxd -r -p
+        echo -n 'Me55'
+    } | sha1sum | rev | xxd -r -p
+    echo -n ''
+} | base64 | sed 's/[^a-zA-Z0-9]//g'
+
