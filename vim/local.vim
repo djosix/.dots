@@ -1,7 +1,16 @@
+""""""""""""""""""""""""""""""""""""""""""""""""""
+" Local Settings
+""""""""""""""""""""""""""""""""""""""""""""""""""
+
 set mouse=a
 set clipboard=unnamed
 
+""""""""""""""""""""""""""""""""""""""""""""""""""
+" Color Settings
+""""""""""""""""""""""""""""""""""""""""""""""""""
+
 "colorscheme codedark
+
 "colorscheme onehalfdark
 
 "set background=dark
@@ -19,5 +28,10 @@ set clipboard=unnamed
 "let g:edge_style = 'default' " default, aura, neon
 "colorscheme edge
 
+""""""""""""""""""""""""""""""""""""""""""""""""""
+" Other Settings
+""""""""""""""""""""""""""""""""""""""""""""""""""
+
 "set rtp+=/usr/local/opt/fzf
+"set rtp+=/opt/homebrew/opt/fzf
 

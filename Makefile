@@ -33,9 +33,9 @@ vim:
 	@scripts/backup.sh ~/.vimrc ~/.vim
 	@scripts/install_vim.sh
 
-vundle:
-	@echo '===> vundle'
-	@scripts/install_vundle.sh
+vim_plug:
+	@echo '===> vim plug'
+	@scripts/install_vim_plug.sh
 
 git:
 	@echo '===> git'
