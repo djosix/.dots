@@ -11,7 +11,7 @@
     tmux          Install tmux config file
 
     git           Setup name and email for Git
-    vundle        Install Vundle and my plugins
+    vim_plug      Install plugins using Plug
     dirs          Create useful directories
 
     part          Run bash, zsh, vim, and tmux
@@ -20,7 +20,6 @@
     update        Discard and update
     discard       Discard changes in .dots
     cleanup       Remove backup files
-
   ```
 
 - Quick install
