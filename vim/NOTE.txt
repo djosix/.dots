@@ -1,0 +1,139 @@
+
+Move Cursor
+  Left:  h
+  Down:  j
+  Up:    k
+  Right: l
+
+Move In Screen
+  Top (High):   H
+  Middle:       M
+  Bottom (Low): L
+
+Move In Line
+  Next Word Start: w
+  Next Non-Space Start: W
+  Previous Word Start: b
+  Previous Non-Space Start: B
+  Word End: e
+  Non-Space End: E
+  Previous Word End: ge
+  Previous Non-Space End: gE
+  Line Start: 0
+  Line End: $
+  Non-Space Line Start: ^
+  Non-Space Line End: g_
+
+Move In File
+  Top: gg
+  Bottom: G
+  Line 5: 5G
+  Line 5: 5gg
+
+Jump To Declaration
+  Local: gd
+  Global: gD
+
+Jump To Occurance In Line
+  Next x: fx
+  Next Before x: tx
+  Previous x: Fx
+  Previous Before x: Tx
+  Repeat: ;
+  Repeat: ,
+
+Jump By Paragraph
+  Previous: {
+  Next: }
+
+Scroll:
+  Center Cursor: zz
+  Up 1 Line: <ctrl>e
+  Down 1 Line: <ctrl>y
+  Up 1 Screen: <ctrl>b
+  Down 1 Screen: <ctrl>f
+  Up 1/2 Screen: <ctrl>u
+  Down 1/2 Screen: <ctrl>d
+
+Insert (Normal)
+  At Cursor: i
+  At Line Start: I
+  After Cursor: a
+  After Line: A
+  New Line At Cursor: O
+  New Line Below Cursor: o
+  At Word End: ea
+  Delete To Line End And Insert: C
+  Delete Line And Insert: cc
+  Delete Line And Insert: S
+  Delete To Word End And Insert: cw
+  Delete Character And Insert: s
+
+Insert Mode:
+  Indent: <ctrl>t
+  Dedent: <ctrl>d
+  Delete Charactor Before Cursor (Backspace): <ctrl>h
+  Delete Word Before Cursor (Backspace Word): <ctrl>w
+  New Line (Enter): <ctrl>n
+  Paste Register a: <ctrl>ra
+  Paste Current File Path (Register %): <ctrl>r%
+  Paste Command Output: <ctrl>r=system("ls")
+
+Normal Mode:
+  Replace Character: r
+  Replace Multiple Characters Unit Esc Pressed: R
+  Join Line Below With Space: J
+  Join Line Below Without Space: gJ
+  Undo: u
+  Redo: <ctrl>r
+  Repeat: .
+  Copy Line: yy
+  Copy 2 Lines: 2yy
+  Copy To Word End: ye
+  Paste At Cursor: P
+  Paste After Cursor: p
+  Paste At Cursor And Move Right: gP
+  Paste After Cursor And Move Right: gp
+  Cut Line: dd
+  Cut To Line End: D
+
+Indent
+  Indent: >>
+  Dedent: <<
+  Indent 3: 3>>
+  Re-Indent: ==
+
+Search
+  Forward: /PATTERN
+  Backword: ?PATTERN
+  Repeart Search In Same Direction: n
+  Repeart Search In Opposite Direction: n
+  Replace: %s/PATTERN/REPLACEMENT/
+  Replace All: %s/PATTERN/REPLACEMENT/g
+  Replace All With Confirmations: %s/PATTHER/REPLACEMENT/gc
+  Remove Highlighting: :noh
+
+Comment: \c<space>
+
+Completion
+  File Name: <ctrl>x<ctrl>f
+  Context-Aware: <ctrl>x<ctrl>p
+  Context-Aware: <ctrl>x<ctrl>n
+  Context-Aware Line: <ctrl>x<ctrl>l
+  Language-Aware: <ctrl>x<ctrl>o:
+
+Delete Content And Paste Command Output:
+  :%!ls
+
+Insert Command Output At Next Line:
+  :r!ls
+
+Save File As Root:
+  :w !sudo tee %
+
+Registers
+  Cut Line To Register a: "add
+  Copy Line To Register a: "ayy
+  Paste Current File Path: "%p
+  Paste Last Command: ":p
+  Paste Last Edited File Path: "#p
