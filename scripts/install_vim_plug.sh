@@ -19,7 +19,9 @@ PLACEHOLDER='" {PLACEHOLDER}'
 [[ ! `grep -F "$NEW_LINE" $VIMRC` && `grep -F "$PLACEHOLDER" $VIMRC` ]] && (
     echo "@@@ Adding vim-plug source line to $VIMRC (because '$PLACEHOLDER' exists)"
     set -x
-    sed -i '' "s|$PLACEHOLDER|$NEW_LINE\n$PLACEHOLDER|" $VIMRC
+    TEMP_FILE="$(mktemp)"
+    sed "s|$PLACEHOLDER|$NEW_LINE\n$PLACEHOLDER|" $VIMRC > $TEMP_FILE
+    mv $TEMP_FILE $VIMRC
 )
 
 [[ `grep -F "$NEW_LINE" $VIMRC` ]] && (
