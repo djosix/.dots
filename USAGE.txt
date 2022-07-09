@@ -6,7 +6,7 @@ Select targets to run:
   tmux          Install tmux config file
 
   git           Setup name and email for Git
-  vundle        Install Vundle and my plugins
+  vim_plug      Install plugins using Plug
   dirs          Create useful directories
 
   part          Run bash, zsh, vim, and tmux
