@@ -39,6 +39,7 @@ endif
 
 noremap <C-t> :NERDTreeToggle<CR>
 let NERDTreeMapOpenInTab='<space>'
+let NERDSpaceDelims=1
 
 inoremap <C-p> <C-x><C-f>
 inoremap <C-a> <C-n>
