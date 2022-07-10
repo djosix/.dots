@@ -14,8 +14,8 @@
     vim_plug      Install plugins using Plug
     dirs          Create useful directories
 
-    part          Run bash, zsh, vim, and tmux
-    all           Run bash, zsh, vim, tmux, git, vundle, and dirs
+    part          [bash, zsh, vim, tmux]
+    all           [bash, zsh, vim, tmux, git, vim_plug, dirs]
 
     update        Discard and update
     discard       Discard changes in .dots
