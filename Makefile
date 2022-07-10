@@ -14,7 +14,7 @@ default:
 
 part: bash zsh vim tmux
 
-all: bash zsh vim tmux git vundle dirs
+all: bash zsh vim tmux git vim_plug dirs
 
 bash:
 	@echo '===> bash'
