@@ -1,0 +1,85 @@
+#!/bin/bash
+
+set -e -o pipefail
+
+[[ $# == 2 ]] || {
+    echo "Usage: $0 PORT TARGET_PORT"
+    exit 1
+}
+
+[[ `uname` == Linux ]] || {
+    echo "Error: This script can only be run on Linux"
+    exit 1
+}
+
+hash iptables && \
+hash iptables-save && \
+hash sysctl && \
+hash sleep || {
+    echo "Error: Some of the required commands do not exist"
+    exit 1
+}
+
+[[ $USER == root ]] || {
+    echo "Error: This command should only be run by root"
+    exit 1
+}
+
+
+function _sysctl_setup {
+    SYSCTL_CONFIG_NAME='net.ipv4.ip_forward'
+    SYSTEL_TARGET_VALUE='1'
+    SYSCTL_RESTORE_ARG="$(sysctl "$SYSCTL_CONFIG_NAME" | tr -d ' ' | grep -F "$SYSCTL_CONFIG_NAME")"
+
+    sysctl -w "$SYSCTL_CONFIG_NAME=$SYSTEL_TARGET_VALUE"
+}
+
+function _sysctl_restore {
+    [[ $SYSCTL_RECOVER_ARG ]] || return
+    sysctl -w "$SYSCTL_RECOVER_ARG"
+}
+
+function _iptables_setup {
+    IPTABLES_UNIQUE_ID="$(printf '%04x%04x%04x%04x' $RANDOM $RANDOM $RANDOM $RANDOM)"
+    IPTABLES_PREFIX='x-remap-port'
+    IPTABLES_COMMENT="$IPTABLES_PREFIX:$IPTABLES_UNIQUE_ID"
+    
+    (
+        set -x
+        iptables -t nat -I PREROUTING 1 \
+            -m addrtype --dst-type LOCAL \
+            -p tcp --dport "$PORT" \
+            -j REDIRECT --to-ports "$TARGET_PORT" \
+            -m comment --comment "$IPTABLES_COMMENT"
+        iptables -t nat -I OUTPUT 1 \
+            -m addrtype --dst-type LOCAL \
+            -p tcp --dport "$PORT" \
+            -j REDIRECT --to-ports "$TARGET_PORT" \
+            -m comment --comment "$IPTABLES_COMMENT"
+    )
+}
+
+function _iptables_restore {
+    [[ $IPTABLES_COMMENT ]] || return
+    eval "$(iptables-save -t nat | grep -F "\"$IPTABLES_COMMENT\"" | sed 's/-A/-D/g;s/^/iptables -t nat /g')"
+}
+
+function setup {
+    echo "===> Mapping port $PORT to port $TARGET_PORT. Press Ctrl+C to stop."
+    _sysctl_setup
+    _iptables_setup
+}
+
+function restore {
+    echo
+    echo "===> Restore"
+    _sysctl_restore
+    _iptables_restore
+}
+
+declare -i PORT=$1
+declare -i TARGET_PORT=$2
+
+trap restore EXIT
+setup
+while true; do sleep 86400; done
