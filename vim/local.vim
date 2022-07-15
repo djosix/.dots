@@ -4,6 +4,7 @@
 
 set mouse=a
 set clipboard=unnamed
+"set nu rnu " hybrid line number
 
 """"""""""""""""""""""""""""""""""""""""""""""""""
 " Color Settings
