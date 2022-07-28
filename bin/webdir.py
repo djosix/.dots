@@ -1,26 +1,35 @@
 #!/usr/bin/env python3
+# Author: djosix
+# License: MIT
 
 import json
 import re
 import os
+import sys
 import socket
 import textwrap
 import enum
+import base64
+import subprocess as sp
 from datetime import datetime
 from typing import List, NamedTuple, Optional, Union
 from argparse import ArgumentParser
 from contextlib import suppress
 
-from flask import Flask, request, abort, escape, redirect
-from flask.helpers import send_file
-from flask_httpauth import HTTPBasicAuth
-from werkzeug.serving import get_interface_ip
-from werkzeug.utils import secure_filename
-
-'''
-flask
-flask_httpauth
-'''
+while True:
+    try:
+        from flask import Flask, request, abort, escape, redirect
+        from flask.helpers import send_file
+        from flask_httpauth import HTTPBasicAuth
+        from werkzeug.serving import get_interface_ip
+        from werkzeug.utils import secure_filename
+        break
+    except ImportError:
+        if input('Install required packages? [y/N] ').lower() != 'y':
+            sys.exit()
+        sp.check_call([sys.executable, '-m', 'pip', 'install',
+                       'flask', 'flask_httpauth', 'werkzeug'])
+        continue
 
 class TableRow(NamedTuple):
     name: str
@@ -90,14 +99,14 @@ def T(name, *args: List[Union[str, list, tuple, dict]], **kwargs) -> str:
         else:
             attrs['class'] = ' '.join(name_classes)
         
-    attrs = ''.join(f' {key}="{escape(value)}"' for key, value in attrs.items())
+    attrs = ''.join(f' {escape(key)}="{escape(value)}"' for key, value in attrs.items())
     inner = ''.join(map(str, inner))
     
     if name_tag.lower() in NO_CLOSING_TAGS:
         assert len(inner) == 0
-        return f'<{name_tag}{attrs}/>'
+        return f'<{escape(name_tag)}{attrs}/>'
     else:
-        return f'<{name_tag}{attrs}>{inner}</{name_tag}>'
+        return f'<{escape(name_tag)}{attrs}>{inner}</{escape(name_tag)}>'
 
 def format_date(timestamp: Union[int, float]):
     assert isinstance(timestamp, (int, float))
@@ -164,9 +173,36 @@ def get_path_writability(path):
         return os.access(path, os.W_OK | os.R_OK | os.X_OK)
     return False
 
+ICON_SVG_DOCUMENT = (
+    '<svg fill="#000000" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="32px" height="32px">'
+    '<path d="M 4.5 2 C 3.675781 2 3 2.675781 3 3.5 L 3 12.5 C 3 13.324219 3.675781 14 4.5 14 L 11.5 14 C '
+    '12.324219 14 13 13.324219 13 12.5 L 13 5.292969 L 9.707031 2 Z M 4.5 3 L 9 3 L 9 6 L 12 6 L 12 12.5 C '
+    '12 12.78125 11.78125 13 11.5 13 L 4.5 13 C 4.21875 13 4 12.78125 4 12.5 L 4 3.5 C 4 3.21875 4.21875 3 '
+    '4.5 3 Z M 10 3.707031 L 11.292969 5 L 10 5 Z M 6 8 L 6 9 L 10 9 L 10 8 Z M 6 10 L 6 11 L 9 11 L 9 10 Z"/></svg>'
+)
+ICON_SVG_FOLDER = (
+    '<svg fill="#000000" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="32px" height="32px">'
+    '<path d="M 2.5 2 C 1.675781 2 1 2.675781 1 3.5 L 1 12.5 C 1 13.324219 1.675781 14 2.5 14 L 13.5 14 C 14.324219 '
+    '14 15 13.324219 15 12.5 L 15 5.5 C 15 4.675781 14.324219 4 13.5 4 L 6.796875 4 L 6.144531 2.789063 C 5.882813 '
+    '2.300781 5.375 2 4.824219 2 Z M 2.5 3 L 4.824219 3 C 5.007813 3 5.175781 3.101563 5.265625 3.261719 L 5.664063 '
+    '4 L 2 4 L 2 3.5 C 2 3.21875 2.21875 3 2.5 3 Z M 2 5 L 13.5 5 C 13.78125 5 14 5.21875 14 5.5 L 14 12.5 C 14 12.78125 '
+    '13.78125 13 13.5 13 L 2.5 13 C 2.21875 13 2 12.78125 2 12.5 Z"/></svg>'
+)
+
+def base64_encode(s):
+    return base64.b64encode(s.encode()).decode()
+
+def svg_img(svg_data):
+    return T('img', {
+        'src': 'data:image/svg+xml;base64,{}'.format(base64_encode(svg_data)),
+        'style': 'width: 16px',
+    })
+
 class Handler:
-    def __init__(self, root):
+    def __init__(self, root, no_list, no_modify):
         self.abs_root = os.path.abspath(root)
+        self.no_list = no_list
+        self.no_modify = no_modify
     
     def __get_local_path(self, path):
         abs_path = os.path.abspath(os.path.join(self.abs_root, path))
@@ -179,18 +215,21 @@ class Handler:
         webpath = os.path.join('/', relpath)
         webpath = os.path.abspath(webpath)
         
+        dir_writable = os.access(abs_dir_path, os.W_OK)
+        
         entries = []
         
         for item_name in os.listdir(abs_dir_path):
             item_path = os.path.join(abs_dir_path, item_name)
-            entries.append({
-                'name': item_name,
-                'path': item_path,
-                'type': get_path_type(item_path),
-                'readable': get_path_readibility(item_path),
-                'writable': get_path_writability(item_path),
-                'stat': os.stat(item_path),
-            })
+            with suppress(Exception):
+                entries.append({
+                    'name': item_name,
+                    'path': item_path,
+                    'type': get_path_type(item_path),
+                    'readable': get_path_readibility(item_path),
+                    'writable': get_path_writability(item_path),
+                    'stat': os.stat(item_path),
+                })
         
         entries.sort(key=(lambda entry: (-entry['type'].value, entry['name'])))
         
@@ -199,6 +238,11 @@ class Handler:
         for token in filter(len, webpath.split('/')):
             href_tokens.append(token)
             breadcrumb_links.append(T('a', {'href': '/' + '/'.join(href_tokens)}, token))
+        
+        icon_map = {
+            EntryType.FILE: svg_img(ICON_SVG_DOCUMENT),
+            EntryType.DIRECTORY: svg_img(ICON_SVG_FOLDER),
+        }
         
         table_rows = []
         for i, entry in enumerate(entries):
@@ -216,6 +260,7 @@ class Handler:
                     'id': display_name,
                     'data-sort-type': entry['type'],
                     'data-sort-name': display_name,
+                    'data-sort-perm': display_perm,
                     'data-sort-ctime': display_ctime,
                     'data-sort-mtime': display_mtime,
                     'data-sort-atime': display_atime,
@@ -228,6 +273,7 @@ class Handler:
                             'data-entry-name': entry['name']
                         })
                     ]),
+                    T('td.table-cell-icon', icon_map.get(entry['type'], '')),
                     T('td.table-cell-normal', T('a.name', link_attrs, display_name)),
                     T('td.table-cell-normal', display_size),
                     T('td.table-cell-normal', display_perm),
@@ -243,9 +289,14 @@ class Handler:
                 ])
             )
         
+        modification_buttons = [] if self.no_modify else [
+            T('button#upload', {'type': 'button'}, 'Upload'), ' ',
+            T('button#delete', {'type': 'button'}, 'Delete'),
+        ]
+        
         return T('html', [
             T('head', [
-                T('title', 'Title'),
+                T('title', webpath),
                 T('meta', {'charset': 'utf-8'}),
                 T('meta', {'name': 'viewport', 'content': 'width=device-width, initial-scale=1'}),
                 T('style', textwrap.dedent('''
@@ -267,13 +318,16 @@ class Handler:
                     }
                     .table-header-link {
                         font-weight: bold;
-                        font-style: italic;
+                        // font-style: italic;
                     }
                     .table-cell-checkbox {
                         padding: 0.25em 0.25em;
                     }
                     .table-cell-normal {
                         padding: 0.25em 0.5em;
+                    }
+                    .table-cell-icon {
+                        padding-left: 0.5em;
                     }
                     .menu-item {
                         display: inline-block;
@@ -293,34 +347,47 @@ class Handler:
                     .mark {
                         background-color: yellow;
                     }
+                    .table-header-link[data-order=desc]::after {
+                        content: "-";
+                    }
+                    .table-header-link[data-order=asc]::after {
+                        content: "+";
+                    }
                 '''))
             ]),
             T('body', [
                 T('.container', [
                     T('.section', [
                         T('h2', '/'.join(breadcrumb_links)),
+                        T('p', 'Modification is disabled.' if self.no_modify else f'Writable: {dir_writable}'),
                     ]),
                     T('.section', [
                         T('button', {'type': 'button', 'onclick': 'location.href = {}'.format(json.dumps(os.path.dirname(webpath)))}, '..'), ' ',
                         T('input.name-filter', {'type': 'text', 'placeholder': 'RegExp name filter', 'autofocus': ''}), ' ',
-                        T('button#upload', {'type': 'button'}, 'Upload'), ' ',
-                        T('button#delete', {'type': 'button'}, 'Delete'),
+                        *modification_buttons,
                     ]),
                     T('.section', [
                         T('table.table', [
                             T('tr.table-header', [
                                 T('td.table-cell-checkbox', T('input.table-row-checkbox-all', {'type': 'checkbox'})),
-                                T('td.table-cell-normal', T('a.table-header-link', {'href': '#'}, 'name')),
-                                T('td.table-cell-normal', T('a.table-header-link', {'href': '#'}, 'size')),
-                                T('td.table-cell-normal', T('a.table-header-link', {'href': '#'}, 'permission')),
-                                T('td.table-cell-normal', T('a.table-header-link', {'href': '#'}, 'created at')),
-                                T('td.table-cell-normal', T('a.table-header-link', {'href': '#'}, 'modified at')),
-                                T('td.table-cell-normal', T('a.table-header-link', {'href': '#'}, 'accessed at')),
+                                T('td.table-cell-normal'),
+                                T('td.table-cell-normal', T('a.table-header-link', {'href': '#', 'data-sort-by': 'name'}, 'name')),
+                                T('td.table-cell-normal', T('a.table-header-link', {'href': '#', 'data-sort-by': 'size'}, 'size')),
+                                T('td.table-cell-normal', T('a.table-header-link', {'href': '#', 'data-sort-by': 'perm'}, 'permission')),
+                                T('td.table-cell-normal', T('a.table-header-link', {'href': '#', 'data-sort-by': 'ctime'}, 'created at')),
+                                T('td.table-cell-normal', T('a.table-header-link', {'href': '#', 'data-sort-by': 'mtime'}, 'modified at')),
+                                T('td.table-cell-normal', T('a.table-header-link', {'href': '#', 'data-sort-by': 'atime'}, 'accessed at')),
                             ]),
                             ''.join(table_rows),
                         ]),
                     ]),
                 ]),
+                T('script', textwrap.dedent(
+                    f'''
+                    const modifiable = {json.dumps(not self.no_modify)};
+                    const writable = {json.dumps(dir_writable)};
+                    '''
+                )),
                 T('script', textwrap.dedent(
                     '''
                     function refreshFilterResult(filterRegex) {
@@ -349,16 +416,20 @@ class Handler:
                         let checkboxes = [...document.querySelectorAll('input.table-row-checkbox')];
                         let selected = checkboxes.filter(el => el.checked);
                         let uploadButton = document.querySelector('button#upload');
-                        if (selected.length > 0) {
-                            uploadButton.setAttribute('disabled', '');
-                        } else {
-                            uploadButton.removeAttribute('disabled');
+                        if (uploadButton) {
+                            if (selected.length > 0 || !writable && modifiable) {
+                                uploadButton.setAttribute('disabled', '');
+                            } else {
+                                uploadButton.removeAttribute('disabled');
+                            }
                         }
                         let deleteButton = document.querySelector('button#delete');
-                        if (selected.length > 0) {
-                            deleteButton.removeAttribute('disabled');
-                        } else {
-                            deleteButton.setAttribute('disabled', '');
+                        if (deleteButton) {
+                            if (selected.length > 0 && writable && modifiable) {
+                                deleteButton.removeAttribute('disabled');
+                            } else {
+                                deleteButton.setAttribute('disabled', '');
+                            }
                         }
                     }
                     
@@ -393,7 +464,8 @@ class Handler:
                         criterion ||= x => x.getAttribute('data-sort-order');
                         sign = Math.sign(sign || 1);
                         let table = document.querySelector('table.table');
-                        let rows = [...document.querySelectorAll('table.table>.table-row')];
+                        let rows = [...table.querySelectorAll('.table-row')];
+                        console.log(rows);
                         rows.sort((a, b) => (criterion(a) > criterion(b) ? sign : -sign));
                         for (let el of rows) {
                             el.remove();
@@ -401,8 +473,7 @@ class Handler:
                         }
                     }
                     
-                    function uploadFiles(action = '') {
-                        
+                    function createUploadForm(action = '') {
                         let form = document.createElement('form');
                         form.setAttribute('action', action);
                         form.setAttribute('method', 'post');
@@ -428,15 +499,41 @@ class Handler:
                                 form.submit();
                             }
                         });
-                        
                         form.appendChild(file);
-                        file.click();
+                        
+                        return { form, file };
                     }
                     
-                    document.querySelector('button#upload').addEventListener('click', function (e) {
-                        uploadFiles();
-                    })
+                    function uploadFiles(action = '') {
+                        let obj = createUploadForm(action);
+                        obj.file.click();
+                    }
                     
+                    let uploadButton = document.querySelector('button#upload');
+                    if (uploadButton) {
+                        uploadButton.addEventListener('click', function (e) {
+                            uploadFiles();
+                        });
+                    }
+                    
+                    document.body.addEventListener('dragover', function (e) {
+                        e.preventDefault();
+                    });
+                    
+                    document.body.addEventListener('drop', function(e) {
+                        console.log('test');
+                        e.preventDefault();
+                        if (!modifiable) {
+                            alert('Modification is disabled.');
+                        } else if (!writable) {
+                            alert('Current directory is not writable.');
+                        } else {
+                            let obj = createUploadForm();
+                            obj.file.files = e.dataTransfer.files;
+                            obj.file.dispatchEvent(new Event('change'));
+                        }
+                    }, true);
+
                     function deleteFiles(action = '') {
                         let form = document.createElement('form');
                         form.setAttribute('action', action);
@@ -474,11 +571,60 @@ class Handler:
                         form.submit();
                     }
                     
-                    document.querySelector('button#delete').addEventListener('click', function (e) {
-                        deleteFiles();
-                    })
+                    let deleteButton = document.querySelector('button#delete');
+                    if (deleteButton) {
+                        deleteButton.addEventListener('click', function (e) {
+                            deleteFiles();
+                        })
+                    }
                     
                     refreshButtons();
+                    
+                    const sortCriteria = {
+                        name: row => row.getAttribute('data-sort-name'),
+                        type: row => row.getAttribute('data-sort-type'),
+                        ctime: row => row.getAttribute('data-sort-ctime'),
+                        mtime: row => row.getAttribute('data-sort-mtime'),
+                        atime: row => row.getAttribute('data-sort-atime'),
+                        size: row => row.getAttribute('data-sort-size'),
+                        order: row => row.getAttribute('data-sort-order'),
+                    };
+                    
+                    document.querySelectorAll('.table-header-link').forEach(function (link) {
+                        link.addEventListener('click', function (e) {
+                            e.preventDefault();
+
+                            document.querySelectorAll('.table-header-link').forEach(function (otherLink) {
+                                if (link != otherLink) {
+                                    otherLink.setAttribute('data-order', '');
+                                }
+                            });
+                            
+                            let criterionKey = link.getAttribute('data-sort-by');
+                            let order = link.getAttribute('data-order');
+                            let criterion;
+                            let sortSign;
+                            
+                            if (!order) {
+                                order = 'asc';
+                                criterion = sortCriteria[criterionKey] || sortCriteria.order;
+                                sortSign = 1;
+                            } else if (order === 'asc') {
+                                order = 'desc';
+                                criterion = sortCriteria[criterionKey] || sortCriteria.order;
+                                sortSign = -1;
+                            } else if (order === 'desc') {
+                                order = '';
+                                criterion = sortCriteria.order;
+                                sortSign = 1;
+                            }
+                            
+                            console.log(criterion);
+                            
+                            link.setAttribute('data-order', order);
+                            refreshTableRowOrder(criterion, sortSign);
+                        });
+                    });
                     '''
                 ))
             ]),
@@ -493,7 +639,7 @@ class Handler:
                 return self.create(path)
             elif action == 'delete':
                 return self.delete(path)
-        abort(400, 'Unknown action')
+        abort(400, 'Unknown action.')
     
     def view(self, path):
         local_path = self.__get_local_path(path)
@@ -506,14 +652,16 @@ class Handler:
         elif os.path.isfile(local_path):
             return send_file(local_path)
         elif os.path.isdir(local_path):
+            if self.no_list:
+                abort(403, 'Directory listing is forbidden.')
             return self.__list_directory(local_path)
         else:
             abort(403)
     
     def delete(self, path):
+        if self.no_modify:
+            abort(403, 'Modification is forbidden.')
         entry_names = request.form.getlist('file')
-        print('delete:', entry_names)
-        # return {'entry_names': entry_names}
         local_paths = [self.__get_local_path(os.path.join(path, name)) for name in entry_names]
         for entry_name, local_path in zip(entry_names, local_paths):
             if local_path is None:
@@ -539,6 +687,8 @@ class Handler:
         return redirect(f'/{path}', 302)
 
     def create(self, path):
+        if self.no_modify:
+            abort(403, 'Modification is forbidden.')
         local_path = self.__get_local_path(path)
         if not os.path.isdir(local_path):
             abort(403, 'Target is not a directory.')
@@ -556,9 +706,9 @@ class Handler:
 def view_handler(path='/'):
     return path
 
-def create_flask_app(root, basic_auth, permissions):
+def create_flask_app(root, basic_auth, no_list, no_modify):
     app = Flask(__name__)
-    handler = Handler(root)
+    handler = Handler(root, no_list, no_modify)
     handle = handler.handle
     if basic_auth:
         auth = HTTPBasicAuth()
@@ -597,12 +747,8 @@ def main():
     parser.add_argument('--debug', action='store_true')
     parser.add_argument('--https', action='store_true')
     parser.add_argument('--basic-auth')
-    parser.add_argument('--allow-list', '-l', action='store_true')
-    parser.add_argument('--allow-read', '-r', action='store_true')
-    parser.add_argument('--allow-create', '-c', action='store_true')
-    parser.add_argument('--allow-write', '-w', action='store_true')
-    parser.add_argument('--allow-delete', '-d', action='store_true')
-    parser.add_argument('--allow-all', '-a', action='store_true')
+    parser.add_argument('--no-list', '-L', action='store_true')
+    parser.add_argument('--no-modify', '-M', action='store_true')
     args = parser.parse_args()
 
     if args.basic_auth is not None:
@@ -612,31 +758,17 @@ def main():
         if any(len(item) == 0 for item in basic_auth_tuple):
             raise ValueError('username and password should not be empty for --basic-auth')
 
-    print('Settings:')
-    print(f'  root = {args.root}')
-    print(f'  host = {args.host}')
-    print(f'  port = {args.port}')
-    print(f'  debug = {args.debug}')
-    print(f'  https = {args.https}')
-    print(f'  basic_auth = {args.basic_auth}')
+    print('Arguments:', vars(args))
     
     # scheme = ['http', 'https'][args.https]
     # urls = get_display_url(scheme, args.host, args.port)
-
-    permissions = {
-        'list': bool(args.allow_list or args.allow_all),
-        'read': bool(args.allow_read or args.allow_all),
-        'create': bool(args.allow_create or args.allow_all),
-        'write': bool(args.allow_write or args.allow_all),
-        'delete': bool(args.allow_delete or args.allow_all),
-    }
-    print('Permissions:', [key for key, value in permissions.items() if value])
     
     print('Starting Flask app...')
     create_flask_app(
         args.root,
         args.basic_auth,
-        permissions,
+        args.no_list,
+        args.no_modify,
     ).run(
         host=args.host,
         port=args.port,
