@@ -17,7 +17,7 @@
 # SOFTWARE.
 
 declare COMMAND
-declare -i INTERVAL
+declare INTERVAL
 declare -i VERBOSE=0
 declare -a TARGETS=()
 
@@ -116,5 +116,5 @@ while true; do
     )
     HASH="$NEW_HASH"
     print_last_line "Watching..."
-    sleep $INTERVAL
+    sleep "$INTERVAL"
 done
