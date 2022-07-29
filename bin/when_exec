@@ -1,0 +1,118 @@
+#!/bin/bash
+# Copyright (c) 2022 Yuankui Lee
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+declare COMMAND
+declare -i INTERVAL
+declare -i VERBOSE=0
+declare -a CONDITION=()
+declare -i REPEAT
+
+function get_date {
+    date +'%Y-%m-%d %H:%M:%S'
+}
+
+function print {
+    if (( VERBOSE )); then
+        echo "${ECHO_ARGS[@]}" "[$(get_date)] $@"
+    fi
+}
+
+function print_last_line {
+    if (( VERBOSE )); then
+        echo -en '\r\033[A'
+        print "$@"
+    fi
+}
+
+function show_help {
+    PROGRAM="$(basename $0)"
+    echo "Usage: $PROGRAM [-c COMMAND] [-t INTERVAL] [-v] CONDITION"
+    echo "Description:"
+    echo "  This script executes arbitrary command specified by the user"
+    echo "  after some condition become true."
+    echo "Examples:"
+    echo "  $ $PROGRAM -c 'rm -rfv /tmp/junk' -r '[[ -e /tmp/junk ]]'"
+    echo "    # removes /tmp/junk if it exists, repeatedly."
+    echo "  $ $PROGRAM -c 'pkill --echo sleep' pgrep sleep"
+    echo "    # kill sleep processes when detected"
+    echo "  $ $PROGRAM -c 'echo done' test ! -d /proc/\$PID"
+    echo "    # echo 'done' after a specific process terminates"
+    echo "  $ $PROGRAM -c 'echo done' -v test ! -d /proc/\$PID"
+    echo "    # echo 'done' after a specific process terminates (verbose)"
+}
+
+function show_help_and_panic {
+    show_help
+    exit 1
+}
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -c|--command)
+            shift
+            [[ $# == 0 ]] && show_help_and_panic
+            COMMAND="$1"
+            shift
+            ;;
+        -t|--interval)
+            shift
+            [[ $# == 0 ]] && show_help_and_panic
+            INTERVAL="$1"
+            shift
+            ;;
+        -v|--verbose)
+            VERBOSE=1
+            shift
+            ;;
+        -r|--repeat)
+            REPEAT=1
+            shift
+            ;;
+        -h|--help)
+            show_help
+            exit
+            ;;
+        -*)
+            show_help_and_panic
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
+
+[[ $# == 0 ]] && show_help_and_panic
+CONDITION="$@"
+[[ -z $COMMAND ]] && COMMAND='echo "!!! STATE CHANGE DETECTED !!!"'
+[[ -z $INTERVAL ]] && INTERVAL=1
+print "INTERVAL = $INTERVAL"
+print "COMMAND = ($COMMAND)"
+print "VERBOSE = $VERBOSE"
+print "REPEAT = $REPEAT"
+print "CONDITION = ($CONDITION)"
+
+(( VERBOSE )) && echo
+while true; do
+    if (eval "$CONDITION"); then
+        (eval $COMMAND)
+        (( VERBOSE )) && echo
+        (( REPEAT )) || break
+    fi
+    print_last_line "Running.."
+    sleep $INTERVAL
+done
