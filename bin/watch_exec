@@ -1,0 +1,120 @@
+#!/bin/bash
+# Copyright (c) 2022 Yuankui Lee
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+declare COMMAND
+declare -i INTERVAL
+declare -i VERBOSE=0
+declare -a TARGETS=()
+
+function get_state_hash {
+    { stat -c '%n|%Y|%Z' "$@" | sha1sum | cut -d ' ' -f1; } 2>/dev/null
+}
+
+function get_date {
+    date +'%Y-%m-%d %H:%M:%S'
+}
+
+function print {
+    if (( VERBOSE )); then
+        echo "${ECHO_ARGS[@]}" "[$(get_date)] $@"
+    fi
+}
+
+function print_last_line {
+    if (( VERBOSE )); then
+        echo -en '\r\033[A'
+        print "$@"
+    fi
+}
+
+function show_help {
+    PROGRAM="$(basename $0)"
+    echo "Usage: $PROGRAM [-c COMMAND] [-t INTERVAL] [-v] PATH1 PATH2 ..."
+    echo "Description:"
+    echo "  This script executes arbitrary command specified by the user"
+    echo "  after detecting changes from the given files or directories."
+    echo "Examples:"
+    echo "  $ find . -name '*.cpp' -print0 | xargs -0 $PROGRAM -c 'make all'"
+    echo "  $ $PROGRAM main.cpp -c 'g++ main.cpp'"
+    echo "  $ $PROGRAM main.cpp -c -v 'g++ main.cpp' # verbose"
+}
+
+function show_help_and_panic {
+    show_help
+    exit 1
+}
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -c|--command)
+            shift
+            [[ $# == 0 ]] && show_help_and_panic
+            COMMAND="$1"
+            shift
+            ;;
+        -t|--interval)
+            shift
+            [[ $# == 0 ]] && show_help_and_panic
+            INTERVAL="$1"
+            shift
+            ;;
+        -v|--verbose)
+            VERBOSE=1
+            shift
+            ;;
+        -h|--help)
+            show_help
+            exit
+            ;;
+        -*)
+            show_help_and_panic
+            ;;
+        *)
+            TARGETS+=("$1")
+            shift
+            ;;
+    esac
+done
+
+[[ -z $COMMAND ]] && COMMAND='echo "!!! STATE CHANGE DETECTED !!!"'
+[[ -z $INTERVAL ]] && INTERVAL=1
+
+if [[ ${#TARGETS[@]} == 0 ]]; then
+    while read -d $'\n' NAME; do
+        TARGETS+=("$NAME")
+    done <<< "$(find . -maxdepth 1)"
+fi
+
+print "INTERVAL = $INTERVAL"
+print "COMMAND = ($COMMAND)"
+print "VERBOSE = $VERBOSE"
+print "TARGETS ="
+for NAME in "${TARGETS[@]}"; do
+    print "    $NAME"
+done
+
+while true; do
+    NEW_HASH="$(get_state_hash "${TARGETS[@]}")"
+    [[ $NEW_HASH != $HASH ]] && (
+        eval "$COMMAND"
+        (( VERBOSE )) && echo
+    )
+    HASH="$NEW_HASH"
+    print_last_line "Watching..."
+    sleep $INTERVAL
+done
