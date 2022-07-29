@@ -17,7 +17,7 @@
 # SOFTWARE.
 
 declare COMMAND
-declare -i INTERVAL
+declare INTERVAL
 declare -i VERBOSE=0
 declare -a CONDITION=()
 declare -i REPEAT
@@ -114,5 +114,5 @@ while true; do
         (( REPEAT )) || break
     fi
     print_last_line "Running.."
-    sleep $INTERVAL
+    sleep "$INTERVAL"
 done
