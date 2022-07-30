@@ -49,9 +49,10 @@ function show_help {
     echo "  This script executes arbitrary command specified by the user"
     echo "  after detecting changes from the given files or directories."
     echo "Examples:"
-    echo "  $ find . -name '*.cpp' -print0 | xargs -0 $PROGRAM -c 'make all'"
-    echo "  $ $PROGRAM main.cpp -c 'g++ main.cpp'"
-    echo "  $ $PROGRAM main.cpp -c -v 'g++ main.cpp' # verbose"
+    echo "  $ $PROGRAM -c 'g++ -o main main.cpp && ./main' main.cpp -v # -v is verbose"
+    echo "  $ find . -type f -name '*.cpp' -print0 | xargs -0 $PROGRAM -c make"
+    echo "  $ $PROGRAM -c 'make run' *.cpp *.h Makefile # static paths"
+    echo "  $ $PROGRAM -c 'make run' '*.cpp' '*.h' Makefile # dynamic paths"
 }
 
 function show_help_and_panic {
