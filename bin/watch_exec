@@ -22,7 +22,7 @@ declare -i VERBOSE=0
 declare -a TARGETS=()
 
 function get_state_hash {
-    { stat -c '%n|%Y|%Z' "$@" | sha1sum | cut -d ' ' -f1; } 2>/dev/null
+    { stat -c '%n|%Y|%Z' $@ | sha1sum | cut -d ' ' -f1; } 2>/dev/null
 }
 
 function get_date {
