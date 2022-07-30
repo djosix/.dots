@@ -86,9 +86,9 @@ alias gcl1="gcl --depth 1"
 alias gck="git checkout"
 alias gbh="git branch"
 alias gpsh="git push"
-alias gpom="git push origin master"
+alias gpom='git push origin "$(git branch --show-current)"'
 alias ggg="gaa; gct; gpom"
-alias gplom="git pull origin master"
+alias gplom='git pull origin "$(git branch --show-current)"'
 alias grst="git reset"
 
 #
