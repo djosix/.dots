@@ -22,7 +22,7 @@ declare -i VERBOSE=0
 declare -a TARGETS=()
 
 function get_state_hash {
-    { stat -c '%n|%Y|%Z' $@ | sha1sum | cut -d ' ' -f1; } 2>/dev/null
+    { eval stat -c '%n\|%Y\|%Z' $@ | sha1sum | cut -d ' ' -f1; } 2>/dev/null
 }
 
 function get_date {
@@ -49,10 +49,16 @@ function show_help {
     echo "  This script executes arbitrary command specified by the user"
     echo "  after detecting changes from the given files or directories."
     echo "Examples:"
-    echo "  $ $PROGRAM -c 'g++ -o main main.cpp && ./main' main.cpp -v # -v is verbose"
+    echo "  $ $PROGRAM -c 'g++ -o main main.cpp && ./main' -v main.cpp"
+    echo "    # verbose (-v), show details"
     echo "  $ find . -type f -name '*.cpp' -print0 | xargs -0 $PROGRAM -c make"
-    echo "  $ $PROGRAM -c 'make run' *.cpp *.h Makefile # static paths"
-    echo "  $ $PROGRAM -c 'make run' '*.cpp' '*.h' Makefile # dynamic paths"
+    echo "    # fixed watch list (listed by the find command)"
+    echo "  $ $PROGRAM -c 'make run' *.cpp *.h Makefile"
+    echo "    # fixed watch list (expanded by the shell on start)"
+    echo "  $ $PROGRAM -c 'make run' '\$(find . -name \"*.cpp\")' Makefile"
+    echo "    # dynamic watch list (listed by the find command every N seconds)"
+    echo "  $ $PROGRAM -c 'make run' '*.cpp' '*.h' Makefile"
+    echo "    # dynamic watch list (expanded by bash every N seconds)"
 }
 
 function show_help_and_panic {
@@ -83,6 +89,7 @@ while [[ $# -gt 0 ]]; do
             exit
             ;;
         -*)
+            echo "Error: No such option: $1"
             show_help_and_panic
             ;;
         *)
