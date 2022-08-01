@@ -550,8 +550,8 @@ class Handler:
                         
                         let selected = [...document.querySelectorAll('input.table-row-checkbox')].filter(el => el.checked);
                         
-                        if (selected.length > 1) {
-                            let result = confirm('Are you sure to delete multiple files?');
+                        if (selected.length > 0) {
+                            let result = confirm('Are you sure to delete these entries?');
                             if (!result) {
                                 return;
                             }
