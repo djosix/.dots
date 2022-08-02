@@ -91,6 +91,26 @@ alias ggg="gaa; gct; gpom"
 alias gplom='git pull origin "$(git branch --show-current)"'
 alias grst="git reset"
 
+function int {
+    code="$?"
+    if [[ $# > 0 ]]; then
+        eval "$@"
+        code="$?"
+    fi
+    echo "$code"
+    return "$code"
+}
+
+function bool {
+    code="$?"
+    if [[ $# > 0 ]]; then
+        eval "$@"
+        code="$?"
+    fi
+    (( code == 0 )) && echo true || echo false
+    return "$code"
+}
+
 #
 # Native aliases
 #
