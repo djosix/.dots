@@ -625,6 +625,14 @@ class Handler:
                             refreshTableRowOrder(criterion, sortSign);
                         });
                     });
+                    
+                    if (location.hash === '#recent') {
+                        console.log(123);
+                        let a = document.querySelector('[data-sort-by=ctime]');
+                        a.click();
+                        a.click();
+                        location.hash = '';
+                    }
                     '''
                 ))
             ]),
@@ -701,7 +709,7 @@ class Handler:
                 file.save(filepath)
             except PermissionError:
                 abort(403, 'You have to permission to upload to this path')
-        return redirect(f'/{path}', 302)
+        return redirect(f'/{path}#recent', 302)
 
 def view_handler(path='/'):
     return path
