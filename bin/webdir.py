@@ -274,7 +274,7 @@ class Handler:
                         })
                     ]),
                     T('td.table-cell-icon', icon_map.get(entry['type'], '')),
-                    T('td.table-cell-normal', T('a.name', link_attrs, display_name)),
+                    T('td.table-cell-normal', T('a.name', {'target': '_blank'}, link_attrs, display_name)),
                     T('td.table-cell-normal', display_size),
                     T('td.table-cell-normal', display_perm),
                     T('td.table-cell-normal', display_ctime),
