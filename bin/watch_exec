@@ -20,9 +20,10 @@ declare COMMAND
 declare INTERVAL
 declare -i VERBOSE=0
 declare -a TARGETS=()
+declare STATE_CMD="stat -c '%n:%Y:%Z'"
 
 function get_state_hash {
-    { eval stat -c '%n\|%Y\|%Z' $@ | sha1sum | cut -d ' ' -f1; } 2>/dev/null
+    { eval $STATE_CMD $@ | sha1sum | cut -d ' ' -f1; } 2>/dev/null
 }
 
 function get_date {
@@ -51,6 +52,7 @@ function show_help {
     echo "Options:"
     echo "  -c COMMAND   The command you want to execute when the state changes."
     echo "  -t INTERVAL  The delay interval in seconds between state evaluations."
+    echo "  -s STATE_CMD The state command, e.g. md5sum. (defualt: $STATE_CMD)"
     echo "  -v           Show detailed logs."
     echo "Examples:"
     echo "  $ $PROGRAM -c 'g++ -o main main.cpp && ./main' -v main.cpp"
@@ -65,6 +67,8 @@ function show_help {
     echo "    # dynamic watch list (listed by the find command every N seconds)"
     echo "  $ $PROGRAM -c 'make run' '*.cpp' '*.h' Makefile"
     echo "    # dynamic watch list (expanded by bash every N seconds)"
+    echo "  $ $PROGRAM -c 'make run' -s md5sum '*.cpp' '*.h' Makefile"
+    echo "    # watch file content changes rather than modification times"
 }
 
 function show_help_and_panic {
@@ -84,6 +88,12 @@ while [[ $# -gt 0 ]]; do
             shift
             [[ $# == 0 ]] && show_help_and_panic
             INTERVAL="$1"
+            shift
+            ;;
+        -s|--state)
+            shift
+            [[ $# == 0 ]] && show_help_and_panic
+            STATE_CMD="$1"
             shift
             ;;
         -v|--verbose)
@@ -117,6 +127,7 @@ fi
 print "INTERVAL = $INTERVAL"
 print "COMMAND = ($COMMAND)"
 print "VERBOSE = $VERBOSE"
+print "STATE_CMD = ($STATE_CMD)"
 print "TARGETS ="
 for NAME in "${TARGETS[@]}"; do
     print "    $NAME"
