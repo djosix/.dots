@@ -20,10 +20,15 @@ declare COMMAND
 declare INTERVAL
 declare -i VERBOSE=0
 declare -a TARGETS=()
-declare STATE_CMD="stat -c '%n:%Y:%Z'"
+declare STATE_CMD='stat -c %n:%Y:%Z'
+
+if [[ `uname` == Darwin ]]; then
+    STATE_CMD='stat -f %N:%m:%c'
+fi
 
 function get_state_hash {
-    { eval $STATE_CMD $@ | sha1sum | cut -d ' ' -f1; } 2>/dev/null
+    { eval $STATE_CMD $@ | sha1sum | cut -d ' ' -f1
+    } 2>${STATE_CMD_ERROR_FILE:-/dev/null}
 }
 
 function get_date {
@@ -45,7 +50,7 @@ function print_last_line {
 
 function show_help {
     PROGRAM="$(basename $0)"
-    echo "Usage: $PROGRAM [-c COMMAND] [-t INTERVAL] [-v] PATH1 PATH2 ..."
+    echo "Usage: $PROGRAM [-c COMMAND] [-c STATE_CMD] [-t INTERVAL] [-v] PATH1 PATH2 ..."
     echo "Description:"
     echo "  This script executes arbitrary command specified by the user"
     echo "  after detecting changes from the given files or directories."
