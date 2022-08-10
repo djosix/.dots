@@ -50,7 +50,7 @@ function print_last_line {
 
 function show_help {
     PROGRAM="$(basename $0)"
-    echo "Usage: $PROGRAM [-c COMMAND] [-c STATE_CMD] [-t INTERVAL] [-v] PATH1 PATH2 ..."
+    echo "Usage: $PROGRAM [-c COMMAND] [-s STATE_CMD] [-t INTERVAL] [-v] PATH1 PATH2 ..."
     echo "Description:"
     echo "  This script executes arbitrary command specified by the user"
     echo "  after detecting changes from the given files or directories."
