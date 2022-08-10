@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 [[ -f root-ca-key.pem ]] || \
     openssl genrsa -out root-ca-key.pem 2048
