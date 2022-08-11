@@ -1,27 +1,132 @@
 #!/bin/bash
 
-{
+set -e
+
+function Print {
+    echo "===> $1"
+}
+
+function ShowHelp {
+    PROGRAM="$(basename $0)"
+    echo "Usage: $PROGRAM NAME SUBJ [OPTIONS] [SAN_TYPE:SAN_VALUE] ..."
+    echo "Options:"
+    echo "  -days DAYS"
+    echo "Example:"
+    echo "  $ $PROGRAM MySite /CN=example.com DNS:example.com"
+    echo "  $ cat MySite.crt RootCA.crt > fullchain.pem"
+}
+
+function GenerateRootCA {
     [[ -f RootCA.key ]] || {
-        openssl genrsa -des3 -out RootCA.key 2048
+        Print RootCA.key
+        openssl genrsa -out RootCA.key 4096
         #chmod 600 RootCA.key
     }
     [[ -f RootCA.req ]] || {
-        openssl req -new -key RootCA.key -out RootCA.req
+        Print RootCA.req
+        openssl req -new -key RootCA.key -out RootCA.req -subj "${ROOT_SUBJ:-/CN=RootCA}"
     }
     [[ -f RootCA.crt ]] || {
-        openssl x509 -req -days 3650 -sha256 -extensions v3_ca -signkey RootCA.key -in RootCA.req -out RootCA.crt
+        Print RootCA.crt
+        openssl x509 -req -days 3650 -sha256 -extensions v3_ca \
+            -signkey RootCA.key -in RootCA.req -out RootCA.crt
     }
     [[ -f RootCA.srl ]] || {
+        Print RootCA.srl
         echo 1000 > RootCA.srl
     }
     [[ -f RootCA.pem ]] || {
+        Print RootCA.pem
         cat RootCA.crt RootCA.key > RootCA.pem
     }
 }
 
-for name in $@; do
-    openssl genrsa -out $name.key 2048
-    openssl req -new -key $name.key -out $name.req
-    openssl x509 -req -days 1095 -sha256 -extensions v3_req -CA RootCA.crt -CAkey RootCA.key -CAserial RootCA.srl -CAcreateserial -in $name.req -out $name.crt
-    cat $name.crt $name.key > $name.pem
+function GenerateCert {
+    echo "Name: $NAME"
+    echo "Days: $DAYS"
+
+    local TEMPFILE=`mktemp`
+    PrintSAN >> $TEMPFILE
+    local EXTARGS=()
+    if [[ `cat $TEMPFILE` ]]; then
+        EXTARGS+=('-extfile' "$TEMPFILE")
+        echo "Ext: $(cat $TEMPFILE)"
+    fi
+
+    (
+        set -x
+
+        openssl genrsa -out "$NAME.key" 4096
+
+        openssl req -new -key "$NAME.key" -out "$NAME.req" -subj "$SUBJ"
+
+        openssl x509 -req \
+            -days $DAYS -sha256 \
+            -CA RootCA.crt \
+            -CAkey RootCA.key \
+            -CAserial RootCA.srl \
+            -CAcreateserial \
+            "${EXTARGS[@]}" \
+            -in "$NAME.req" -out "$NAME.crt"
+        
+        openssl x509 -in "$NAME.crt" -text
+
+        cat "$NAME.crt" "$NAME.key" > "$NAME.pem"
+
+        openssl verify -CAfile RootCA.crt -verbose "$NAME.crt"
+    )
+}
+
+function PrintSAN {
+    [[ ${#SAN[@]} == 0 ]] && return
+    local LINE='subjectAltName='
+    for ITEM in "${SAN[@]}"; do
+        LINE="${LINE}${ITEM},"
+    done
+    echo ${LINE%,}
+}
+
+
+if ! hash openssl 2>/dev/null; then
+    echo 'error: openssl command not found'
+    exit 1
+fi
+
+if [[ $(openssl version | cut -d ' ' -f 1) != OpenSSL ]]; then
+    echo "error: unsupported openssl version: $(openssl version)"
+    exit 1
+fi  
+
+GenerateRootCA
+[[ $# == 0 ]] && exit
+[[ $# == 1 ]] && {
+    ShowHelp
+    exit 1
+}
+
+declare NAME="$1"; shift
+declare SUBJ="$1"; shift
+declare -a SAN=()
+declare -i DAYS=397
+
+while (( $# > 0 )); do
+    case "$1" in
+        DNS:*|IP:*|URI:*|RID:*|email:*|otherName:*|dirName:*)
+            SAN+=("$1"); shift
+            ;;
+        -days|--days)
+            DAYS="$2"; shift 2
+            ;;
+        -h|-help|--help)
+            ShowHelp
+            exit
+            ;;
+        *)
+            echo "error: unknown argument: $1"; shift
+            ShowHelp
+            exit 1
+            ;;
+    esac
 done
+
+GenerateCert
