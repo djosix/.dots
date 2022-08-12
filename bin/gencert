@@ -92,11 +92,6 @@ if ! hash openssl 2>/dev/null; then
     exit 1
 fi
 
-if [[ $(openssl version | cut -d ' ' -f 1) != OpenSSL ]]; then
-    echo "error: unsupported openssl version: $(openssl version)"
-    exit 1
-fi  
-
 GenerateRootCA
 [[ $# == 0 ]] && exit
 [[ $# == 1 ]] && {
