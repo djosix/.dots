@@ -1,0 +1,16 @@
+#!/usr/bin/env python3
+
+import sys, argparse
+from urllib.parse import unquote_to_bytes
+
+def file_rt(path):
+    if path == '-':
+        return sys.stdin
+    return open(path, 'rt')
+
+parser = argparse.ArgumentParser(sys.argv[0])
+parser.add_argument('--file', '-f', default='-', help='input file', type=file_rt)
+args = parser.parse_args()
+
+text = args.file.read()
+sys.stdout.buffer.write(unquote_to_bytes(text))

@@ -3,11 +3,12 @@
 import sys, argparse
 from urllib.parse import quote_from_bytes
 
-parser = argparse.ArgumentParser(sys.argv[0])
-parser.add_argument('--file', '-f', default='-', help='input file')
-parser.add_argument('--newline', '-n', default=False, action='store_true', help='consider the last newline char')
-parser.add_argument('--ignore', '-i', default='', help='ignore these chars')
-args = parser.parse_args()
+def file_rb(path):
+    if path == '-':
+        return sys.stdin.buffer
+    return open(path, 'rb')
 
-bs = (sys.stdin.buffer if args.file == '-' else open(args.file, 'rb')).read()
-print(quote_from_bytes((bs[:-1] if not args.newline and bs.endswith(b'\n') else bs), args.ignore))
+parser = argparse.ArgumentParser(sys.argv[0])
+parser.add_argument('--file', '-f', default='-', help='input file', type=file_rb)
+args = parser.parse_args()
+print(quote_from_bytes(args.file.read()))
