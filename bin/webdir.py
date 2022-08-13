@@ -5,11 +5,13 @@
 import json
 import re
 import os
+import glob
 import sys
 import socket
 import textwrap
 import enum
 import base64
+import traceback
 import subprocess as sp
 from datetime import datetime
 from typing import List, NamedTuple, Optional, Union
@@ -24,8 +26,15 @@ while True:
         from werkzeug.serving import get_interface_ip
         from werkzeug.utils import secure_filename
         break
-    except ImportError:
-        if input('Install required packages? [y/N] ').lower() != 'y':
+    except ImportError as e:
+        print('error:', str(e))
+        while True:
+            ans = input('Install required packages? [y/N] ').upper().strip()
+            if not ans:
+                ans = 'N'
+            if ans in 'YN':
+                break
+        if ans == 'N':
             sys.exit()
         sp.check_call([sys.executable, '-m', 'pip', 'install',
                        'flask', 'flask_httpauth', 'werkzeug'])
@@ -730,22 +739,57 @@ def path_type(path):
     assert os.path.exists(path)
     return path
 
-def get_display_url(scheme, host, port):
-    display_urls = []
-    if host == '0.0.0.0':
-        display_urls.append(f'{scheme}://127.0.0.1:{port}')
-        public_host = get_interface_ip(socket.AF_INET)
-    elif host == '::':
-        display_urls.append(f'{scheme}://[::1]:{port}')
-        public_host = get_interface_ip(socket.AF_INET6)
+def get_available_hosts(input_host):
+    if input_host == '0.0.0.0':
+        output_hosts = [get_interface_ip(socket.AF_INET), '127.0.0.1']
+    elif input_host in ('::', '[::]'):
+        output_hosts = [get_interface_ip(socket.AF_INET6), '[::1]']
+    elif ':' in input_host and not input_host.startswith('['):
+        output_hosts = [f'[{input_host}]']
     else:
-        public_host = host
+        output_hosts = [input_host]
+    return output_hosts
 
-    if ':' in public_host:
-        public_host = f'[{public_host}]'
+def get_display_url(scheme, host, port):
+    return [f'{scheme}://{public_host}:{port}'
+            for public_host in get_available_hosts(host)]
 
-    display_urls.append(f'{scheme}://{public_host}:{port}')
-    return display_urls
+def b64urle(s: str) -> str:
+    return base64.urlsafe_b64encode(s.encode()).decode().rstrip('=')
+
+def gencert(host: str, cn=None):
+    raw_name = host if cn is None else cn
+    name = 'WebDir.{}'.format(b64urle(raw_name))
+    cert_dir = os.path.expanduser('~/.webdir')
+    os.makedirs(cert_dir, exist_ok=True)
+    ca_cert_path = os.path.join(cert_dir, 'RootCA.crt')
+    cert_path = os.path.join(cert_dir, f'{name}.crt')
+    key_path = os.path.join(cert_dir, f'{name}.key')
+    fullchain_path = os.path.join(cert_dir, f'{name}.fullchain.crt')
+    if not os.path.isfile(fullchain_path) or not os.path.isfile(key_path):
+        print('[SSL] gencert:', raw_name)
+        san_args = [f'IP:{ip}' for ip in get_available_hosts(host)]
+        if cn is not None:
+            san_args.append(f'DNS:{cn}')
+        sp.check_call(['gencert', name, '/CN=webdir.local', *san_args],
+                      cwd=cert_dir, env={'ROOT_SUBJ': '/CN=WebDir-RootCA',
+                                         'PATH': os.environ['PATH']})
+        assert os.path.isfile(ca_cert_path), repr(ca_cert_path)
+        assert os.path.isfile(cert_path), repr(cert_path)
+        assert os.path.isfile(key_path), repr(key_path)
+        with (open(cert_path) as in1,
+              open(ca_cert_path) as in2,
+              open(fullchain_path, 'w') as out):
+            out.write(in1.read())
+            out.write(in2.read())
+        assert os.path.isfile(fullchain_path), repr(fullchain_path)
+        for path in [*glob.glob(os.path.join(cert_dir, '*.pem')),
+                     *glob.glob(os.path.join(cert_dir, '*.req'))]:
+            os.remove(path)
+    print('[SSL] fullchain:', fullchain_path)
+    print('[SSL] key:', key_path)
+    return fullchain_path, key_path        
+    
 
 def main():
     parser = ArgumentParser()
@@ -754,6 +798,7 @@ def main():
     parser.add_argument('--port', type=int, default=9999)
     parser.add_argument('--debug', action='store_true')
     parser.add_argument('--https', action='store_true')
+    parser.add_argument('--https-host', type=str)
     parser.add_argument('--basic-auth')
     parser.add_argument('--no-list', '-L', action='store_true')
     parser.add_argument('--no-modify', '-M', action='store_true')
@@ -765,11 +810,27 @@ def main():
             raise ValueError('expect --basic-auth <username>:<password>')
         if any(len(item) == 0 for item in basic_auth_tuple):
             raise ValueError('username and password should not be empty for --basic-auth')
+    
+    if args.https_host is not None:
+        args.https = True
 
-    print('Arguments:', vars(args))
+    print('[Options]')
+    for key, value in vars(args).items():
+        print(f'  {key:>10s} = {value!r}')
     
     # scheme = ['http', 'https'][args.https]
     # urls = get_display_url(scheme, args.host, args.port)
+    
+    if args.https:
+        try:
+            ssl_context = gencert(args.host, args.https_host)
+        except:
+            print('error: failed to generate self-signed certificate')
+            print(traceback.format_exc())
+            print('warning: falling back ssl_context to adhoc')
+            ssl_context = 'adhoc'
+    else:
+        ssl_context = None
     
     print('Starting Flask app...')
     create_flask_app(
@@ -782,7 +843,7 @@ def main():
         port=args.port,
         debug=args.debug,
         threaded=True,
-        ssl_context=('adhoc' if args.https else None),
+        ssl_context=ssl_context,
     )
 
 if __name__ == '__main__':
