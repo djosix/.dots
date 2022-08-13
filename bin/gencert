@@ -20,9 +20,7 @@ function GenerateRootCA {
     [[ -f RootCA.key ]] || {
         Print RootCA.key
         openssl genrsa -out RootCA.key 4096
-        #chmod 600 RootCA.key
-    }
-    [[ -f RootCA.req ]] || {
+        chmod 600 RootCA.key
         Print RootCA.req
         openssl req -new -key RootCA.key -out RootCA.req -subj "${ROOT_SUBJ:-/CN=RootCA}"
     }
@@ -30,14 +28,13 @@ function GenerateRootCA {
         Print RootCA.crt
         openssl x509 -req -days 3650 -sha256 -extensions v3_ca \
             -signkey RootCA.key -in RootCA.req -out RootCA.crt
+        Print RootCA.pem
+        cat RootCA.crt RootCA.key > RootCA.pem
+        chmod 600 RootCA.pem
     }
     [[ -f RootCA.srl ]] || {
         Print RootCA.srl
         echo 1000 > RootCA.srl
-    }
-    [[ -f RootCA.pem ]] || {
-        Print RootCA.pem
-        cat RootCA.crt RootCA.key > RootCA.pem
     }
 }
 
@@ -57,6 +54,7 @@ function GenerateCert {
         set -x
 
         openssl genrsa -out "$NAME.key" 4096
+        chmod 600 "$NAME.key"
 
         openssl req -new -key "$NAME.key" -out "$NAME.req" -subj "$SUBJ"
 
@@ -72,6 +70,7 @@ function GenerateCert {
         openssl x509 -in "$NAME.crt" -text
 
         cat "$NAME.crt" "$NAME.key" > "$NAME.pem"
+        chmod 600 "$NAME.pem"
 
         openssl verify -CAfile RootCA.crt -verbose "$NAME.crt"
     )
