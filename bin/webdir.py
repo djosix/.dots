@@ -818,9 +818,6 @@ def main():
     for key, value in vars(args).items():
         print(f'  {key:>10s} = {value!r}')
     
-    # scheme = ['http', 'https'][args.https]
-    # urls = get_display_url(scheme, args.host, args.port)
-    
     if args.https:
         try:
             ssl_context = gencert(args.host, args.https_host)
@@ -829,6 +826,11 @@ def main():
             print(traceback.format_exc())
             print('warning: falling back ssl_context to adhoc')
             ssl_context = 'adhoc'
+        if args.https_host:
+            origin = f'https://{args.https_host}'
+            if args.port != 443:
+                origin += f':{args.port}'
+            print(f' * Will be running on {origin}')
     else:
         ssl_context = None
     
