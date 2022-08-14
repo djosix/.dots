@@ -218,6 +218,49 @@ def svg_img(svg_data):
         'style': 'width: 16px',
     })
 
+NAME_TO_MIMETYPE = {
+    'makefile': 'text/plain',
+    'dockerfile': 'text/plain',
+    '.gitignore': 'text/plain',
+    '.bash_profile': 'text/plain',
+    '.bash_logout': 'text/plain',
+    '.bash_history': 'text/plain',
+    '.bashrc': 'text/plain',
+    '.zshrc': 'text/plain',
+    '.vimrc': 'text/plain',
+    '.history': 'text/plain',
+    '.zsh_history': 'text/plain',
+}
+
+EXT_TO_MIMETYPE = {
+    'md': 'text/plain',
+    'sh': 'text/plain',
+    'conf': 'text/plain',
+    'xml': 'text/plain',
+    'plist': 'text/plain',
+    'pem': 'text/plain',
+    'yml': 'text/plain',
+    'yaml': 'text/plain',
+    'rb': 'text/plain',
+    'rs': 'text/plain',
+    'toml': 'text/plain',
+    'ini': 'text/plain',
+}
+
+def guess_mimetype(path):
+    name = os.path.basename(path).lower()
+    if not name:
+        return
+    mimetype = NAME_TO_MIMETYPE.get(name)
+    if mimetype is not None:
+        return mimetype
+    exts = name.split('.')
+    if len(exts) <= 1:
+        return
+    mimetype = EXT_TO_MIMETYPE.get(exts[-1])
+    if mimetype is not None:
+        return mimetype
+
 class Handler:
     def __init__(self, root, no_list, no_modify):
         self.abs_root = os.path.abspath(root)
@@ -680,7 +723,7 @@ class Handler:
         elif not get_path_readibility(local_path):
             abort(403, 'You have no permission to acces this path.')
         elif os.path.isfile(local_path):
-            return send_file(local_path)
+            return send_file(local_path, mimetype=guess_mimetype(local_path))
         elif os.path.isdir(local_path):
             if self.no_list:
                 abort(403, 'Directory listing is forbidden.')
