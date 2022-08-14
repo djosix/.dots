@@ -5,15 +5,18 @@
 import json
 import re
 import os
-import glob
+import random
+import string
+import ipaddress
 import sys
 import socket
 import textwrap
 import enum
 import base64
 import traceback
+import importlib
 import subprocess as sp
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, NamedTuple, Optional, Union
 from argparse import ArgumentParser
 from contextlib import suppress
@@ -25,11 +28,16 @@ while True:
         from flask_httpauth import HTTPBasicAuth
         from werkzeug.serving import get_interface_ip
         from werkzeug.utils import secure_filename
+        if importlib.util.find_spec('cryptography') is None:
+            raise ImportError(f"No module named 'cryptography'")
         break
     except ImportError as e:
         print('error:', str(e))
         while True:
-            ans = input('Install required packages? [y/N] ').upper().strip()
+            try:
+                ans = input('do you want to install required packages? [y/N] ').upper().strip()
+            except KeyboardInterrupt:
+                ans = 'N'
             if not ans:
                 ans = 'N'
             if ans in 'YN':
@@ -37,8 +45,12 @@ while True:
         if ans == 'N':
             sys.exit()
         sp.check_call([sys.executable, '-m', 'pip', 'install',
-                       'flask', 'flask_httpauth', 'werkzeug'])
+                       'flask', 'flask_httpauth', 'werkzeug', 'cryptography'])
         continue
+    except:
+        print('error: unknown error')
+        print(traceback.format_exc())
+        sys.exit(1)
 
 class TableRow(NamedTuple):
     name: str
@@ -57,7 +69,6 @@ NO_CLOSING_TAGS = {
     'br',
     'col',
     'command',
-    'embed',
     'hr',
     'img',
     'input',
@@ -759,40 +770,156 @@ def get_display_url(scheme, host, port):
 def b64urle(s: str) -> str:
     return base64.urlsafe_b64encode(s.encode()).decode().rstrip('=')
 
-def gencert(host: str, cn=None):
-    raw_name = host if cn is None else cn
-    name = 'WebDir.{}'.format(b64urle(raw_name))
-    cert_dir = os.path.expanduser('~/.webdir')
-    os.makedirs(cert_dir, exist_ok=True)
-    ca_cert_path = os.path.join(cert_dir, 'RootCA.crt')
-    cert_path = os.path.join(cert_dir, f'{name}.crt')
-    key_path = os.path.join(cert_dir, f'{name}.key')
-    fullchain_path = os.path.join(cert_dir, f'{name}.fullchain.crt')
-    if not os.path.isfile(fullchain_path) or not os.path.isfile(key_path):
-        print('[SSL] gencert:', raw_name)
-        san_args = [f'IP:{ip}' for ip in get_available_hosts(host)]
-        if cn is not None:
-            san_args.append(f'DNS:{cn}')
-        sp.check_call(['gencert', name, '/CN=webdir.local', *san_args],
-                      cwd=cert_dir, env={'ROOT_SUBJ': '/CN=WebDir-RootCA',
-                                         'PATH': os.environ['PATH']})
-        assert os.path.isfile(ca_cert_path), repr(ca_cert_path)
-        assert os.path.isfile(cert_path), repr(cert_path)
-        assert os.path.isfile(key_path), repr(key_path)
-        with (open(cert_path) as in1,
-              open(ca_cert_path) as in2,
+def gencert(host: str, common_name=None):
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric import ec
+    from cryptography import x509
+    from cryptography.x509.oid import NameOID
+    from cryptography.hazmat.primitives import hashes
+    from os.path import isfile, join, expanduser
+
+    def generate_key():
+        return ec.generate_private_key(ec.SECP256R1)
+
+    def import_key(path):
+        with open(path, 'rb') as f:
+            return serialization.load_pem_private_key(f.read(), None)
+
+    def export_key(key, path, passphrase=None):
+        if passphrase is None:
+            encryption = serialization.NoEncryption()
+        else:
+            encryption = serialization.BestAvailableEncryption(passphrase.encode())
+        with open(path, 'wb') as f:
+            f.write(key.private_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PrivateFormat.TraditionalOpenSSL,
+                encryption_algorithm=encryption,
+            ))
+
+    def x509_name(common_name):
+        return x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, common_name)])
+
+    def random_id(prefix, length=8):
+        possible_bytes = string.ascii_letters + string.digits
+        suffix = ''.join(random.choices(possible_bytes, k=length))
+        return f'{prefix}{suffix}'
+
+    def certificate_builder(subject_CN, subject_key, issuer_CN, issuer_key, valid_days):
+        # https://www.phildev.net/ssl/creating_ca.html
+        return (x509.CertificateBuilder()
+                .subject_name(x509_name(subject_CN))
+                .issuer_name(x509_name(issuer_CN))
+                .public_key(subject_key.public_key())
+                .serial_number(x509.random_serial_number())
+                .not_valid_before(datetime.utcnow())
+                .not_valid_after(datetime.utcnow() + timedelta(days=valid_days)))
+
+    def sign_usr_cert_has_san(builder: x509.CertificateBuilder, subject_key, issuer_key, san):
+        return (builder
+                .add_extension(x509.SubjectAlternativeName(san), critical=False)
+                .add_extension(x509.BasicConstraints(False, None), critical=False)
+                .add_extension(x509.AuthorityKeyIdentifier.from_issuer_public_key(issuer_key.public_key()), critical=False)
+                .add_extension(x509.SubjectKeyIdentifier.from_public_key(subject_key.public_key()), critical=False)
+                .sign(issuer_key, hashes.SHA256()))
+    
+    def sign_v3_ca(builder: x509.CertificateBuilder, subject_key, issuer_key):
+        return (builder
+                .add_extension(x509.BasicConstraints(True, None), critical=False)
+                .add_extension(x509.AuthorityKeyIdentifier.from_issuer_public_key(issuer_key.public_key()), critical=False)
+                .add_extension(x509.SubjectKeyIdentifier.from_public_key(subject_key.public_key()), critical=False)
+                .sign(issuer_key, hashes.SHA256()))
+
+    def import_certificate(path):
+        with open(path, 'rb') as f:
+            return x509.load_pem_x509_certificate(f.read())
+
+    def export_certificate(certificate, path):
+        with open(path, 'wb') as f:
+            f.write(certificate.public_bytes(serialization.Encoding.PEM))
+
+    name = host if common_name is None else common_name
+    cert_name = 'WebDir.{}'.format(b64urle(name))
+    cert_dir = expanduser('~/.webdir')
+
+    CA_crt_path = join(cert_dir, f'RootCA.crt')
+    CA_key_path = join(cert_dir, f'RootCA.key')
+    crt_path = join(cert_dir, f'{cert_name}.crt')
+    key_path = join(cert_dir, f'{cert_name}.key')
+    fullchain_path = join(cert_dir, f'{cert_name}.fullchain.crt')
+    is_crt_dirty = False
+    
+    if isfile(CA_key_path):
+        CA_key = import_key(CA_key_path)
+    else:
+        print(f'[SSL] generating CA {CA_key_path}')
+        CA_key = generate_key()
+        export_key(CA_key, CA_key_path)
+        assert isfile(CA_key_path), repr(CA_key_path)
+        os.chmod(CA_key_path, 0o600)
+        is_crt_dirty = True
+
+    if not isfile(CA_crt_path) or is_crt_dirty:
+        print(f'[SSL] generating CA {CA_crt_path}')
+        CA_name = random_id('WebDir-RootCA-')
+        CA_crt = sign_v3_ca(
+            certificate_builder(CA_name, CA_key, CA_name, CA_key, 9487),
+            subject_key=CA_key, issuer_key=CA_key
+        )
+        export_certificate(CA_crt, CA_crt_path)
+        assert isfile(CA_crt_path), repr(CA_crt_path)
+        is_crt_dirty = True
+    else:
+        CA_crt = import_certificate(CA_crt_path)
+        CA_cn_attrs = CA_crt.subject.get_attributes_for_oid(NameOID.COMMON_NAME)
+        assert len(CA_cn_attrs) == 1, repr(CA_cn_attrs)
+        CA_name = CA_cn_attrs[0].value
+    
+    if isfile(key_path):
+        key = import_key(CA_key_path)
+    else:
+        print(f'[SSL] generating {key_path}')
+        key = generate_key()
+        export_key(key, key_path)
+        assert isfile(key_path), repr(key_path)
+        os.chmod(key_path, 0o600)
+        is_crt_dirty = True
+
+    if isfile(crt_path):
+        crt = import_certificate(crt_path)
+        remain = crt.not_valid_after - datetime.utcnow()
+        if remain < timedelta(days=365):
+            print(f'[SSL] renewing {crt_path}')
+            os.remove(crt_path)
+
+    if not isfile(crt_path) or is_crt_dirty:
+        print(f'[SSL] generating {crt_path}')
+        crt_cn = 'webdir.local'
+        crt_san = [x509.IPAddress(ipaddress.ip_address(ip))
+                   for ip in get_available_hosts(host)]
+        if common_name is not None:
+            crt_san.append(x509.DNSName(common_name))
+        crt = sign_usr_cert_has_san(
+            certificate_builder(crt_cn, key, CA_name, CA_key, 397),
+            subject_key=key, issuer_key=CA_key, san=crt_san
+        )
+        export_certificate(crt, crt_path)
+        assert isfile(crt_path), repr(crt_path)
+        is_crt_dirty = True
+    
+    if not isfile(fullchain_path) or is_crt_dirty:
+        print(f'[SSL] generating {fullchain_path}')
+        with (open(crt_path) as in1,
+              open(CA_crt_path) as in2,
               open(fullchain_path, 'w') as out):
             out.write(in1.read())
             out.write(in2.read())
-        assert os.path.isfile(fullchain_path), repr(fullchain_path)
-        for path in [*glob.glob(os.path.join(cert_dir, '*.pem')),
-                     *glob.glob(os.path.join(cert_dir, '*.req'))]:
-            os.remove(path)
-    print('[SSL] fullchain:', fullchain_path)
-    print('[SSL] key:', key_path)
-    return fullchain_path, key_path        
+        assert isfile(fullchain_path), repr(fullchain_path)
     
-
+    print(f'[SSL] using fullchain: {fullchain_path}')
+    print(f'[SSL] using key: {key_path}')
+    return fullchain_path, key_path
+    
 def main():
     parser = ArgumentParser()
     parser.add_argument('--root', type=path_type, default='.')
@@ -822,7 +949,10 @@ def main():
     
     if args.https:
         try:
-            ssl_context = gencert(args.host, args.https_host)
+            if args.https_host == 'adhoc':
+                ssl_context = 'adhoc'
+            else:
+                ssl_context = gencert(args.host, args.https_host)
         except:
             print('error: failed to generate self-signed certificate')
             print(traceback.format_exc())
@@ -851,5 +981,4 @@ def main():
     )
 
 if __name__ == '__main__':
-    # import ei; ei.embed(exit=True)
     main()
