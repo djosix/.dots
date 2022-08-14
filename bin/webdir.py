@@ -978,10 +978,14 @@ def main():
 
     if args.basic_auth is not None:
         basic_auth_tuple = args.basic_auth.split(':')
-        if len(basic_auth_tuple) != 2:
-            raise ValueError('expect --basic-auth <username>:<password>')
-        if any(len(item) == 0 for item in basic_auth_tuple):
-            raise ValueError('username and password should not be empty for --basic-auth')
+        if len(basic_auth_tuple) not in (1, 2) or not basic_auth_tuple[0]:
+            raise ValueError('expect --basic-auth <username>[:password]')
+        username = basic_auth_tuple[0]
+        if len(basic_auth_tuple) == 1 or not basic_auth_tuple[1]:
+            password = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
+        else:
+            password = basic_auth_tuple[1]
+        args.basic_auth = f'{username}:{password}'
     
     if args.https_host is not None:
         args.https = True
@@ -1002,7 +1006,8 @@ def main():
             print('warning: falling back ssl_context to adhoc')
             ssl_context = 'adhoc'
         if args.https_host:
-            origin = f'https://{args.https_host}'
+            userpass = f'{args.basic_auth}@' if args.basic_auth else ''
+            origin = f'https://{userpass}{args.https_host}'
             if args.port != 443:
                 origin += f':{args.port}'
             print(f' * Will be running on {origin}')
