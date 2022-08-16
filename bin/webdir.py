@@ -952,9 +952,9 @@ def gencert(host: str, common_name=None):
     
     if not isfile(fullchain_path) or is_crt_dirty:
         print(f'[SSL] generating {fullchain_path}')
-        with (open(crt_path) as in1,
-              open(CA_crt_path) as in2,
-              open(fullchain_path, 'w') as out):
+        with open(crt_path) as in1, \
+              open(CA_crt_path) as in2, \
+              open(fullchain_path, 'w') as out:
             out.write(in1.read())
             out.write(in2.read())
         assert isfile(fullchain_path), repr(fullchain_path)
