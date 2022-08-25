@@ -23,10 +23,6 @@ declare -i KILL=0
 declare -a TARGETS=()
 declare STATE_CMD='stat -c %n:%Y:%Z'
 
-if [[ `uname` == Darwin ]]; then
-    STATE_CMD='stat -f %N:%m:%c'
-fi
-
 function get_state_hash {
     { eval $STATE_CMD $@ | sha1sum | cut -d ' ' -f1
     } 2>${STATE_CMD_ERROR_FILE:-/dev/null}
@@ -34,12 +30,6 @@ function get_state_hash {
 
 function get_date {
     date +'%Y-%m-%d %H:%M:%S'
-}
-
-function print_raw {
-    if (( VERBOSE )); then
-        echo "$@"
-    fi
 }
 
 function print {
@@ -99,6 +89,60 @@ function show_help_and_panic {
     exit 1
 }
 
+function is_decimal {
+    [[ "$1" =~ ^-?[0-9]*(\.[0-9]+)?$ ]]
+}
+
+function polling_watcher {
+    local INTERVAL="$1"
+    shift
+    local TARGETS=("$@")
+    shift $#
+    local HASH=''
+    local NEW_HASH=''
+    while true; do
+        NEW_HASH="$(get_state_hash "${TARGETS[@]}")"
+        [[ $NEW_HASH != $HASH ]] && echo 'STATE_CHANGED'
+        HASH="$NEW_HASH"
+        sleep "$INTERVAL"
+    done
+}
+
+function inotify_watcher {
+    hash inotifywait >& /dev/null || {
+        echo 'error: inotifywait not found, please install inotify-tools first' >&2
+        exit 1
+    }
+    eval inotifywait -q -m -e close_write -- "$@"
+}
+
+function watch {
+    local INTERVAL="$1"
+    shift
+    if [[ $INTERVAL == 0 ]]; then
+        inotify_watcher "$@"
+    else
+        polling_watcher "$INTERVAL" "$@"
+    fi
+}
+
+function debounced_read {
+    local TIME="${1:-0.01}"
+    local VAR
+    while :; do
+        read -d '' -r -t "$TIME" VAR
+        [[ $VAR ]] && return
+    done
+}
+
+function is_killing {
+    (( KILL ))
+}
+
+function is_verbose {
+    (( VERBOSE ))
+}
+
 while [[ $# -gt 0 ]]; do
     case $1 in
         -c|--command)
@@ -142,13 +186,28 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-[[ -z $COMMAND ]] && COMMAND='echo "!!! STATE CHANGE DETECTED !!!"'
-[[ -z $INTERVAL ]] && INTERVAL=1
+[[ -z $COMMAND ]] && COMMAND='echo "State changed at $(date)"'
+
+if [[ -z $INTERVAL ]]; then
+    if hash inotifywait >&/dev/null; then
+        INTERVAL=0
+    else
+        INTERVAL=1
+    fi
+fi
 
 if [[ ${#TARGETS[@]} == 0 ]]; then
     while read -d $'\n' NAME; do
         TARGETS+=("$NAME")
     done <<< "$(find . -maxdepth 1)"
+fi
+
+if [[ `uname` == Darwin ]]; then
+    STATE_CMD='stat -f %N:%m:%c'
+fi
+
+if (( KILL )); then
+    trap 'kill_job; exit 0' INT TERM
 fi
 
 print "INTERVAL = $INTERVAL"
@@ -161,23 +220,18 @@ for NAME in "${TARGETS[@]}"; do
     print "    $NAME"
 done
 
-if (( KILL )); then
-    trap 'kill_job; exit 0' INT TERM
-fi
 
-while true; do
-    NEW_HASH="$(get_state_hash "${TARGETS[@]}")"
-    if [[ $NEW_HASH != $HASH ]]; then
-        if (( KILL )); then
-            kill_job
-            ( eval "$COMMAND" ) &
-            JOB_PID="$!"
-        else
-            ( eval "$COMMAND" )
-        fi
-        (( VERBOSE )) && echo
+
+while debounced_read; do
+    if is_killing; then
+        kill_job
+        ( eval "$COMMAND" ) &
+        JOB_PID="$!"
+    else
+        ( eval "$COMMAND" )
     fi
-    HASH="$NEW_HASH"
+    if is_verbose; then
+        echo
+    fi
     print_last_line "Watching..."
-    sleep "$INTERVAL"
-done
+done < <(watch "$INTERVAL" "${TARGETS[@]}")
