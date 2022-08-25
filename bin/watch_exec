@@ -19,6 +19,7 @@
 declare COMMAND
 declare INTERVAL
 declare -i VERBOSE=0
+declare -i KILL=0
 declare -a TARGETS=()
 declare STATE_CMD='stat -c %n:%Y:%Z'
 
@@ -35,6 +36,12 @@ function get_date {
     date +'%Y-%m-%d %H:%M:%S'
 }
 
+function print_raw {
+    if (( VERBOSE )); then
+        echo "$@"
+    fi
+}
+
 function print {
     if (( VERBOSE )); then
         echo "${ECHO_ARGS[@]}" "[$(get_date)] $@"
@@ -45,6 +52,17 @@ function print_last_line {
     if (( VERBOSE )); then
         echo -en '\r\033[A'
         print "$@"
+    fi
+}
+
+function kill_job {
+    if [[ $JOB_PID && -e /proc/$JOB_PID ]]; then
+        declare -a PIDS
+        mapfile -t PIDS <<< "$(ps -o pid= --ppid $JOB_PID)"
+        PIDS+=("$JOB_PID")
+        echo "[killing "$JOB_PID"]" >&2
+        kill -9 ${PIDS[@]} >&/dev/null
+        wait >&/dev/null
     fi
 }
 
@@ -105,6 +123,10 @@ while [[ $# -gt 0 ]]; do
             VERBOSE=1
             shift
             ;;
+        -k|--kill)
+            KILL=1
+            shift
+            ;;
         -h|--help)
             show_help
             exit
@@ -132,18 +154,29 @@ fi
 print "INTERVAL = $INTERVAL"
 print "COMMAND = ($COMMAND)"
 print "VERBOSE = $VERBOSE"
+print "KILL = $KILL"
 print "STATE_CMD = ($STATE_CMD)"
 print "TARGETS ="
 for NAME in "${TARGETS[@]}"; do
     print "    $NAME"
 done
 
+if (( KILL )); then
+    trap 'kill_job; exit 0' INT TERM
+fi
+
 while true; do
     NEW_HASH="$(get_state_hash "${TARGETS[@]}")"
-    [[ $NEW_HASH != $HASH ]] && (
-        eval "$COMMAND"
+    if [[ $NEW_HASH != $HASH ]]; then
+        if (( KILL )); then
+            kill_job
+            ( eval "$COMMAND" ) &
+            JOB_PID="$!"
+        else
+            ( eval "$COMMAND" )
+        fi
         (( VERBOSE )) && echo
-    )
+    fi
     HASH="$NEW_HASH"
     print_last_line "Watching..."
     sleep "$INTERVAL"
