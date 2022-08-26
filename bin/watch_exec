@@ -21,7 +21,7 @@ declare INTERVAL
 declare -i VERBOSE=0
 declare -i KILL=0
 declare -a TARGETS=()
-declare STATE_CMD='stat -c %n:%Y:%Z'
+declare STATE_CMD
 
 function get_state_hash {
     { eval $STATE_CMD $@ | sha1sum | cut -d ' ' -f1
@@ -33,16 +33,12 @@ function get_date {
 }
 
 function print {
-    if (( VERBOSE )); then
-        echo "${ECHO_ARGS[@]}" "[$(get_date)] $@"
-    fi
+    echo "${ECHO_ARGS[@]}" "[$(get_date)] $@"
 }
 
 function print_last_line {
-    if (( VERBOSE )); then
-        echo -en '\r\033[A'
-        print "$@"
-    fi
+    echo -en '\r\033[A'
+    print "$@"
 }
 
 function kill_job {
@@ -65,7 +61,9 @@ function show_help {
     echo "Options:"
     echo "  -c COMMAND   The command you want to execute when the state changes."
     echo "  -t INTERVAL  The delay interval in seconds between state evaluations."
-    echo "  -s STATE_CMD The state command, e.g. md5sum. (defualt: $STATE_CMD)"
+    echo "               If equals to 0, use inotifywait (-s has no effect anymore)."
+    echo "  -s STATE_CMD The state command, e.g. md5sum. (defualt: stat)"
+    echo "  -k           Kill unfinished command when new state change is detected."
     echo "  -v           Show detailed logs."
     echo "Examples:"
     echo "  $ $PROGRAM -c 'g++ -o main main.cpp && ./main' -v main.cpp"
@@ -82,6 +80,9 @@ function show_help {
     echo "    # dynamic watch list (expanded by bash every N seconds)"
     echo "  $ $PROGRAM -c 'make run' -s md5sum '*.cpp' '*.h' Makefile"
     echo "    # watch file content changes rather than modification times"
+    echo "  $ $PROGRAM -t 0 ./"
+    echo "    # watch files and directories in ./ using inotifywait"
+    echo "    # you must install inotify-tools to use this feature"
 }
 
 function show_help_and_panic {
@@ -102,7 +103,7 @@ function polling_watcher {
     local NEW_HASH=''
     while true; do
         NEW_HASH="$(get_state_hash "${TARGETS[@]}")"
-        [[ $NEW_HASH != $HASH ]] && echo 'STATE_CHANGED'
+        [[ $HASH && $NEW_HASH != $HASH ]] && echo 'STATE_CHANGED'
         HASH="$NEW_HASH"
         sleep "$INTERVAL"
     done
@@ -135,7 +136,11 @@ function debounced_read {
     done
 }
 
-function is_killing {
+function has_cmd {
+    hash "$1" >&/dev/null 
+}
+
+function is_kill_enabled {
     (( KILL ))
 }
 
@@ -176,7 +181,7 @@ while [[ $# -gt 0 ]]; do
             exit
             ;;
         -*)
-            echo "Error: No such option: $1"
+            echo "error: no such option: $1" >&2
             show_help_and_panic
             ;;
         *)
@@ -186,44 +191,64 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-[[ -z $COMMAND ]] && COMMAND='echo "State changed at $(date)"'
-
-if [[ -z $INTERVAL ]]; then
-    if hash inotifywait >&/dev/null; then
-        INTERVAL=0
-    else
-        INTERVAL=1
-    fi
+if [[ -z $COMMAND ]]; then
+    COMMAND='echo "State changed at $(date)"'
 fi
 
 if [[ ${#TARGETS[@]} == 0 ]]; then
-    while read -d $'\n' NAME; do
-        TARGETS+=("$NAME")
-    done <<< "$(find . -maxdepth 1)"
+    if [[ -z $STATE_CMD ]]; then
+        if [[ $INTERVAL -eq 0 ]]; then
+            echo 'error: watching no files' >&2
+        else
+            echo 'error: you must specify -s CMD to watch by command' >&2
+        fi
+        exit 1
+    fi
+    if [[ -z $INTERVAL ]]; then
+        INTERVAL=1
+    elif [[ ! $INTERVAL =~ ^[1-9] ]]; then
+        echo "error: invalid interval $INTERVAL when no file is provided" >&2
+        exit 1
+    fi
 fi
 
-if [[ `uname` == Darwin ]]; then
-    STATE_CMD='stat -f %N:%m:%c'
+if [[ -z $INTERVAL ]]; then
+    INTERVAL=1
+    if [[ -z $STATE_CMD ]] && has_cmd inotifywait; then
+        INTERVAL=0
+    fi
 fi
 
-if (( KILL )); then
+if (( INTERVAL == 0 )) && [[ $STATE_CMD ]]; then
+    echo "warning: STATE_CMD=($STATE_CMD) has no effect when interval equals to 0" >&2
+fi
+
+if [[ -z $STATE_CMD ]]; then
+    if [[ `uname` == 'Darwin' ]]; then
+        STATE_CMD='stat -f %N:%m:%c'
+    else
+        STATE_CMD='stat -c %n:%Y:%Z'
+    fi
+fi
+
+if is_kill_enabled; then
     trap 'kill_job; exit 0' INT TERM
 fi
 
-print "INTERVAL = $INTERVAL"
-print "COMMAND = ($COMMAND)"
-print "VERBOSE = $VERBOSE"
-print "KILL = $KILL"
-print "STATE_CMD = ($STATE_CMD)"
-print "TARGETS ="
-for NAME in "${TARGETS[@]}"; do
-    print "    $NAME"
-done
-
-
+if is_verbose; then
+    print "INTERVAL = $INTERVAL"
+    print "COMMAND = ($COMMAND)"
+    print "VERBOSE = $VERBOSE"
+    print "KILL = $KILL"
+    print "STATE_CMD = ($STATE_CMD)"
+    print "TARGETS ="
+    for NAME in "${TARGETS[@]}"; do
+        print "    $NAME"
+    done
+fi
 
 while debounced_read; do
-    if is_killing; then
+    if is_kill_enabled; then
         kill_job
         ( eval "$COMMAND" ) &
         JOB_PID="$!"
@@ -232,6 +257,6 @@ while debounced_read; do
     fi
     if is_verbose; then
         echo
+        print_last_line "Watching..."
     fi
-    print_last_line "Watching..."
 done < <(watch "$INTERVAL" "${TARGETS[@]}")
