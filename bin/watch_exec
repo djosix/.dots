@@ -37,6 +37,7 @@ function print {
 }
 
 function print_last_line {
+    echo
     echo -en '\r\033[A'
     print "$@"
 }
@@ -281,7 +282,6 @@ while is_running && debounced_read "$FD"; do
         ( eval "$COMMAND" )
     fi
     if is_verbose; then
-        echo
         print_last_line "Watching..."
     fi
 done
