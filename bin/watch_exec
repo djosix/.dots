@@ -138,12 +138,21 @@ function stop_running {
 }
 
 function debounced_read {
-    local TIME="${1:-0.01}"
+    local FD="${1:-0}"
+    local TIME="${2:-0.01}"
     local VAR
     while is_running; do
-        read -d '' -r -t "$TIME" VAR
+        read -u $FD -d '' -r -t "$TIME" VAR
         [[ $VAR ]] && return
     done
+}
+
+function find_available_fd {
+    local FD
+    for FD in {3..255}; do
+        [[ -e /proc/self/fd/$FD ]] || break
+    done
+    echo "$FD"
 }
 
 function has_cmd {
@@ -261,7 +270,9 @@ if is_verbose; then
     done
 fi
 
-while is_running && debounced_read; do
+FD=`find_available_fd`
+exec {FD}< <(watch "$INTERVAL" "${TARGETS[@]}")
+while is_running && debounced_read "$FD"; do
     if is_kill_enabled; then
         kill_job
         ( eval "$COMMAND" ) &
@@ -273,4 +284,4 @@ while is_running && debounced_read; do
         echo
         print_last_line "Watching..."
     fi
-done < <(watch "$INTERVAL" "${TARGETS[@]}")
+done
