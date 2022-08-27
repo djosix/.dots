@@ -48,7 +48,7 @@ function kill_job {
         PIDS+=("$JOB_PID")
         echo "[killing "$JOB_PID"]" >&2
         kill -9 ${PIDS[@]} >&/dev/null
-        wait >&/dev/null
+        wait $JOB_PID >&/dev/null
     fi
 }
 
@@ -127,10 +127,20 @@ function watch {
     fi
 }
 
+function kill_and_exit {
+    stop_running
+    kill_job
+    exit 0
+}
+
+function stop_running {
+    DONE=true
+}
+
 function debounced_read {
     local TIME="${1:-0.01}"
     local VAR
-    while :; do
+    while is_running; do
         read -d '' -r -t "$TIME" VAR
         [[ $VAR ]] && return
     done
@@ -146,6 +156,10 @@ function is_kill_enabled {
 
 function is_verbose {
     (( VERBOSE ))
+}
+
+function is_running {
+    [[ ${DONE+defined} != defined ]]
 }
 
 while [[ $# -gt 0 ]]; do
@@ -232,7 +246,7 @@ if [[ -z $STATE_CMD ]]; then
 fi
 
 if is_kill_enabled; then
-    trap 'kill_job; exit 0' INT TERM
+    trap kill_and_exit INT TERM
 fi
 
 if is_verbose; then
@@ -247,7 +261,7 @@ if is_verbose; then
     done
 fi
 
-while debounced_read; do
+while is_running && debounced_read; do
     if is_kill_enabled; then
         kill_job
         ( eval "$COMMAND" ) &
