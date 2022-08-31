@@ -3,6 +3,7 @@
 # License: MIT
 
 import json
+from posixpath import islink
 import re
 import os
 import random
@@ -419,6 +420,9 @@ class Handler:
                     .table-header-link[data-order=asc]::after {
                         content: "+";
                     }
+                    .table-row:hover {
+                        background-color: #F0F0F0;
+                    }
                 '''))
             ]),
             T('body', [
@@ -746,15 +750,33 @@ class Handler:
             if not get_path_writability(local_path):
                 abort(403, f'You have no permission to delete {entry_name!r}')
         result = {}
-        for entry_name, local_path in zip(entry_names, local_paths):
-            entry_type = get_path_type(local_path)
-            print('delete:', local_path)
-            if entry_type == EntryType.FILE:
+        from os.path import islink, isfile, isdir, join, exists
+        for local_path in local_paths:
+            if not local_path:
+                continue
+            if islink(local_path) or isfile(local_path):
                 with suppress(OSError):
                     os.remove(local_path)
-            elif entry_type == EntryType.DIRECTORY:
-                with suppress(OSError):
-                    os.rmdir(local_path)
+                continue
+            if isdir(local_path):
+                for prefix, dirs, files in os.walk(local_path, topdown=False):
+                    if not exists(prefix):
+                        continue
+                    for name in files:
+                        file = join(prefix, name)
+                        with suppress(OSError):
+                            os.remove(file)
+                    for name in dirs:
+                        dir = join(prefix, name)
+                        if islink(dir):
+                            with suppress(OSError):
+                                os.remove(dir)
+                        else:
+                            with suppress(OSError):
+                                os.removedirs(dir)
+                    with suppress(OSError):
+                        os.removedirs(prefix)
+        for entry_name, local_path in zip(entry_names, local_paths):
             result[entry_name] = not os.path.exists(local_path)
         if not all(result.values()):
             return result
@@ -1007,7 +1029,7 @@ def main():
 
     print('[Options]')
     for key, value in vars(args).items():
-        if key == 'basic_auth':
+        if key == 'basic_auth' and isinstance(value, str):
             value = value.split(':')[0] + ':[hidden]'
         print(f'  {key:>10s} = {value!r}')
     
