@@ -52,15 +52,16 @@ dirs:
 	@test -d ~/Space || mkdir -v ~/Space
 	@test -d ~/.bin || mkdir -v ~/.bin
 
-update: discard
+update:
 	@echo '===> update'
-	@git fetch --all
-	@git reset --hard origin/master
+	git add -A
+	git fetch --all
+	git reset --soft origin/master
 
 discard:
 	@echo '===> discard'
-	@git add -A
-	@git reset --hard origin/master
+	git add -A
+	git reset --hard origin/master
 
 cleanup: backup/*
 	@echo '===> cleanup'
