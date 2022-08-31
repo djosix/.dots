@@ -1007,6 +1007,8 @@ def main():
 
     print('[Options]')
     for key, value in vars(args).items():
+        if key == 'basic_auth':
+            value = value.split(':')[0] + ':[hidden]'
         print(f'  {key:>10s} = {value!r}')
     
     if args.https:
