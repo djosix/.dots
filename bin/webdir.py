@@ -792,7 +792,7 @@ def create_flask_app(root, basic_auth, no_list, no_modify):
     return app
 
 def path_type(path):
-    assert os.path.exists(path)
+    assert os.path.exists(path), f'path {path!r} does not exist'
     return path
 
 def get_available_hosts(input_host):
@@ -816,10 +816,15 @@ def b64urle(s: str) -> str:
 def gencert(host: str, common_name=None):
     from cryptography.hazmat.primitives import serialization
     from cryptography.hazmat.primitives.asymmetric import ec
-    from cryptography import x509
+    from cryptography import x509, __version__ as version
     from cryptography.x509.oid import NameOID
     from cryptography.hazmat.primitives import hashes
     from os.path import isfile, join, expanduser
+    
+    if int(version.split('.')[0]) < 36:
+        print(f'[SSL] warning: Package cryptography v{version} is lower than v36.')
+        print(f'               This may cause errors. Please consider upgrading it')
+        print(f'               to the latest version.')
 
     def generate_key():
         return ec.generate_private_key(ec.SECP256R1)
@@ -884,6 +889,7 @@ def gencert(host: str, common_name=None):
     name = host if common_name is None else common_name
     cert_name = 'WebDir.{}'.format(b64urle(name))
     cert_dir = expanduser('~/.webdir')
+    os.makedirs(cert_dir, exist_ok=True)
 
     CA_crt_path = join(cert_dir, f'RootCA.crt')
     CA_key_path = join(cert_dir, f'RootCA.key')
