@@ -55,8 +55,7 @@ dirs:
 update:
 	@echo '===> update'
 	git add -A
-	git fetch --all
-	git reset --soft origin/master
+	git pull --rebase --autostash origin master
 
 discard:
 	@echo '===> discard'
