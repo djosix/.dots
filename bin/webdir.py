@@ -245,6 +245,7 @@ EXT_TO_MIMETYPE = {
     'rs': 'text/plain',
     'toml': 'text/plain',
     'ini': 'text/plain',
+    'log': 'text/plain',
 }
 
 def guess_mimetype(path):
