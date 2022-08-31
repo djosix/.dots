@@ -968,7 +968,15 @@ def gencert(host: str, common_name=None):
     print(f'[SSL] using fullchain: {fullchain_path}')
     print(f'[SSL] using key: {key_path}')
     return fullchain_path, key_path
-    
+
+def app():
+    return create_flask_app(
+        os.environ.get('WEBDIR_ROOT', '.'),
+        os.environ.get('WEBDIR_BASIC_AUTH'),
+        os.environ.get('WEBDIR_NO_LIST') is not None,
+        os.environ.get('WEBDIR_NO_MODIFY') is not None,
+    )
+
 def main():
     parser = ArgumentParser()
     parser.add_argument('--root', type=path_type, default='.')
