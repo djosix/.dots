@@ -1,0 +1,4 @@
+#!/bin/bash
+
+hash setsid >/dev/null 2>&1 && setsid=setsid
+(( $setsid "$@" &)&)
