@@ -3,8 +3,6 @@
 # License: MIT
 
 import json
-from posixpath import islink
-from pydoc import isdata
 import re
 import os
 import random
