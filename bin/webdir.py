@@ -331,7 +331,7 @@ class Handler:
                     'data-sort-ctime': display_ctime,
                     'data-sort-mtime': display_mtime,
                     'data-sort-atime': display_atime,
-                    'data-sort-size': entry['stat'].st_size,
+                    'data-sort-size': '{:016d}'.format(entry['stat'].st_size),
                     'data-sort-order': i,
                 }, [
                     T('td.table-cell-checkbox', [
