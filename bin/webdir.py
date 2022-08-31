@@ -4,6 +4,7 @@
 
 import json
 from posixpath import islink
+from pydoc import isdata
 import re
 import os
 import random
@@ -358,7 +359,8 @@ class Handler:
         
         modification_buttons = [] if self.no_modify else [
             T('button#upload', {'type': 'button'}, 'Upload'), ' ',
-            T('button#delete', {'type': 'button'}, 'Delete'),
+            T('button#delete', {'type': 'button'}, 'Delete'), ' ',
+            T('button#newfolder', {'type': 'button'}, 'New Folder'),
         ]
         
         return T('html', [
@@ -501,6 +503,10 @@ class Handler:
                                 deleteButton.setAttribute('disabled', '');
                             }
                         }
+                        let newFolderButton = document.querySelector('button#newfolder');
+                        if (newFolderButton && !writable) {
+                            newFolderButton.setAttribute('disabled', '');
+                        }
                     }
                     
                     function refreshCheckboxState(changedCheckBox) {
@@ -641,11 +647,60 @@ class Handler:
                         form.submit();
                     }
                     
+                    function createFolder(action='') {
+                        let name = prompt('Please specify a folder name:');
+                        if (!name) {
+                            return;
+                        }
+                        let invalidChars = /[~!@#$%^&\\*\\(\\)\\+\\{\\}\\|:"<>\\?`\\[\\]\\\\=',\\/]/;
+                        let matchedInvalidChars = invalidChars.exec(name);
+                        if (matchedInvalidChars) {
+                            matchedInvalidChars = [...matchedInvalidChars];
+                            matchedInvalidChars = matchedInvalidChars.map(c => `(${c})`);
+                            let formatted = matchedInvalidChars.join(', ');
+                            alert(`Name contains invalid characters: ${formatted}`);
+                            return;
+                        }
+                        let escapedName = CSS.escape(name);
+                        if (document.querySelector(`[data-entry-name=${escapedName}]`)) {
+                            alert(`Entry [${name}] already exists!`);
+                            return;
+                        }
+                        
+                        let form = document.createElement('form');
+                        form.setAttribute('action', action);
+                        form.setAttribute('method', 'post');
+                        form.style.display = 'none';
+                        form.appendChild(function () {
+                            let action = document.createElement('input');
+                            action.setAttribute('type', 'hidden');
+                            action.setAttribute('name', 'action');
+                            action.setAttribute('value', 'new_folder');
+                            return action;
+                        }());
+                        form.appendChild(function () {
+                            let action = document.createElement('input');
+                            action.setAttribute('type', 'hidden');
+                            action.setAttribute('name', 'name');
+                            action.setAttribute('value', name);
+                            return action;
+                        }());
+                        document.body.appendChild(form);
+                        form.submit();
+                    }
+                    
                     let deleteButton = document.querySelector('button#delete');
                     if (deleteButton) {
                         deleteButton.addEventListener('click', function (e) {
                             deleteFiles();
                         })
+                    }
+                    
+                    let newFolderButton = document.querySelector('button#newfolder');
+                    if (newFolderButton) {
+                        newFolderButton.addEventListener('click', function (e) {
+                            createFolder();
+                        });
                     }
                     
                     refreshButtons();
@@ -717,6 +772,9 @@ class Handler:
                 return self.create(path)
             elif action == 'delete':
                 return self.delete(path)
+                return self.create(path)
+            elif action == 'new_folder':
+                return self.new_folder(path)
         abort(400, 'Unknown action.')
     
     def view(self, path):
@@ -797,6 +855,22 @@ class Handler:
                 file.save(filepath)
             except PermissionError:
                 abort(403, 'You have to permission to upload to this path')
+        return redirect(f'/{path}#recent', 302)
+
+    def new_folder(self, path):
+        if self.no_modify:
+            abort(403, 'Modification is forbidden.')
+        name = request.form.get('name')
+        if not name:
+            abort(400, 'Name not provided.')
+        folder_path = os.path.join(path, name)
+        folder_path = self.__get_local_path(folder_path)
+        if os.path.exists(folder_path):
+            abort(400, 'Folder already exists.')
+        with suppress(OSError):
+            os.makedirs(folder_path, exist_ok=True)
+        if not os.path.isdir(folder_path):
+            abort(500, 'Failed to create folder.')
         return redirect(f'/{path}#recent', 302)
 
 def view_handler(path='/'):
