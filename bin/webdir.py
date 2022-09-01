@@ -246,6 +246,7 @@ EXT_TO_MIMETYPE = {
     'toml': 'text/plain',
     'ini': 'text/plain',
     'log': 'text/plain',
+    'php': 'text/plain',
 }
 
 def guess_mimetype(path):
