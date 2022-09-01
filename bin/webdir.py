@@ -1072,6 +1072,38 @@ def app():
         os.environ.get('WEBDIR_NO_MODIFY') is not None,
     )
 
+def has_gunicorn():
+    try:
+        import gunicorn as _
+        return True
+    except ImportError:
+        return False
+
+def run_with_gunicorn(app, host, port, ssl_context):
+    from gunicorn.app.base import BaseApplication
+    class Application(BaseApplication):
+        def __init__(self, app, **options):
+            self.options = options
+            self.application = app
+            super().__init__()
+        def load_config(self):
+            config = {key: value for key, value in self.options.items()
+                      if key in self.cfg.settings and value is not None}
+            for key, value in config.items():
+                self.cfg.set(key.lower(), value)
+        def load(self):
+            return self.application
+    options = {}
+    options['bind'] = f'{host}:{port}'
+    options['workers'] = 4
+    if ssl_context is not None:
+        assert isinstance(ssl_context, tuple), 'NOT IMPLEMENTED'
+        (
+            options['certfile'],
+            options['keyfile'],
+        ) = ssl_context
+    Application(app, **options).run()
+
 def main():
     parser = ArgumentParser()
     parser.add_argument('--root', type=path_type, default='.')
@@ -1125,19 +1157,33 @@ def main():
     else:
         ssl_context = None
     
-    print('Starting Flask app...')
-    create_flask_app(
+    app = create_flask_app(
         args.root,
         args.basic_auth,
         args.no_list,
         args.no_modify,
-    ).run(
-        host=args.host,
-        port=args.port,
-        debug=args.debug,
-        threaded=True,
-        ssl_context=ssl_context,
     )
+    if (
+        args.debug or
+        not has_gunicorn() or
+        ssl_context == 'adhoc'
+    ):
+        print('Starting Flask app...')
+        app.run(
+            host=args.host,
+            port=args.port,
+            debug=args.debug,
+            threaded=True,
+            ssl_context=ssl_context,
+        )
+    else:
+        print('Starting Flask app using gunicorn...')
+        run_with_gunicorn(
+            app,
+            host=args.host,
+            port=args.port,
+            ssl_context=ssl_context,
+        )
 
 if __name__ == '__main__':
     main()
