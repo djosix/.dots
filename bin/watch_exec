@@ -273,7 +273,7 @@ fi
 
 FD=`find_available_fd`
 exec {FD}< <(watch "$INTERVAL" "${TARGETS[@]}")
-while is_running && debounced_read "$FD"; do
+while true; do
     if is_kill_enabled; then
         kill_job
         ( eval "$COMMAND" ) &
@@ -284,4 +284,5 @@ while is_running && debounced_read "$FD"; do
     if is_verbose; then
         print_last_line "Watching..."
     fi
+    is_running && debounced_read "$FD" || break
 done
