@@ -272,8 +272,8 @@ if is_verbose; then
 fi
 
 FD=`find_available_fd`
-exec {FD}< <(watch "$INTERVAL" "${TARGETS[@]}")
-while true; do
+eval "exec $FD< "'<(watch "$INTERVAL" "${TARGETS[@]}")'
+while is_running && debounced_read "$FD"; do
     if is_kill_enabled; then
         kill_job
         ( eval "$COMMAND" ) &
