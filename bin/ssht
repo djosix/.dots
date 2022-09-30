@@ -1,0 +1,105 @@
+#!/usr/bin/env python3
+
+import argparse
+import os
+import re
+from socket import gethostbyname
+import sys
+from typing import List, NamedTuple
+import subprocess as sp
+
+def exit_with_message(msg):
+    print(msg)
+    os._exit(1)
+
+class Options(NamedTuple):
+    target: str
+    remote_listen: str
+    local_listen: str
+    connect: str
+    
+    @classmethod
+    def parse_from(cls, argv: List[str]):
+        prog, *argv = argv
+        parser = argparse.ArgumentParser(prog)
+        parser.add_argument('target', metavar='SSH_TARGET', help='example: user@host.name:port')
+        parser.add_argument('--local-listen', '-l', metavar='LISTEN', help='example: 12345 or 127.0.0.1:12345')
+        parser.add_argument('--remote-listen', '-r', metavar='REMOTE_LISTEN', help='example: 12345 or 127.0.0.1:12345')
+        parser.add_argument('--connect', '-c', metavar='CONNECT', help='example: 12345 or 127.0.0.1:12345')
+        return cls(**vars(parser.parse_args(argv)))
+
+def get_ssh_base_argv(target):
+    match = re.match(r'^((?P<user>[_\-0-9a-zA-Z]+)@)?(?P<host>[^\:]+?)(:(?P<port>\d+))?$', target)
+    if match is None:
+        exit_with_message('error: invalid ssh target: {!r}'.format(target))
+    info = match.groupdict()
+    user, host, port = info['user'], info['host'], info['port']
+    try:
+        host = gethostbyname(host)
+    except:
+        exit_with_message('error: cannot resolve: {!r}'.format(host))
+    argv = [
+        'ssh', '-NTC',
+        '-o', 'ServerAliveInterval=60',
+        '-o', 'ExitOnForwardFailure=yes',
+        host if user is None else '{}@{}'.format(user, host)
+    ]
+    if port is not None:
+        port = int(port)
+        if port not in range(65536):
+            exit_with_message('error: invalid port: {!r}'.format(port))
+        argv += ['-p', str(port)]
+    return argv
+
+def get_host_port(target, default_host, resolve_now=True):
+    match = re.match(r'^((?P<host>[^:]+):)?(?P<port>\d+)$', target)
+    if match is None:
+        exit_with_message('error: invalid "[host:]port": {}'.format(target))
+    info = match.groupdict()
+    host, port = info['host'], info['port']
+    if host is None:
+        host = default_host
+    if host != '*' and resolve_now:
+        try:
+            host = gethostbyname(host)
+        except:
+            exit_with_message('error: cannot resolve: {!r}'.format(host))
+    port = int(port)
+    if port not in range(65536):
+        exit_with_message('error: invalid port: {}'.format(port))
+    return host, port
+
+def main():
+    opts = Options.parse_from(sys.argv)
+    run(opts, get_ssh_base_argv(opts.target))
+
+def run(opts, ssh_base_argv):
+    if opts.local_listen is None and opts.remote_listen is None:
+        exit_with_message('error: either "-l" or "-r" should be provided')
+    elif opts.connect is None:
+        exit_with_message('error: "-c" should be specified')
+    elif opts.local_listen is not None:
+        listen_host, listen_port = get_host_port(opts.local_listen, '*')
+        connect_host, connect_port = get_host_port(opts.connect, 'localhost')
+        ssh_base_argv += ['-L', '{}:{}:{}:{}'.format(listen_host, listen_port, connect_host, connect_port)]
+    elif opts.remote_listen is not None:
+        print('info: you need to add "GatewayPorts clientspecified" to /etc/ssh/sshd_config on the remote host and try reload sshd with "systemctl reload sshd"')
+        listen_host, listen_port = get_host_port(opts.remote_listen, '*', False)
+        connect_host, connect_port = get_host_port(opts.connect, 'localhost')
+        ssh_base_argv += ['-R', '{}:{}:{}:{}'.format(listen_host, listen_port, connect_host, connect_port)]
+    else:
+        exit_with_message('unreachable')
+    
+    print('info: options: {!r}'.format(opts))
+    print('info: command: {!r}'.format(ssh_base_argv))
+    
+    while True:
+        try:
+            proc = sp.Popen(ssh_base_argv)
+            proc.wait()
+        except KeyboardInterrupt:
+            print('[exiting]')
+            break
+    
+if __name__ == '__main__':
+    main()
