@@ -102,7 +102,7 @@ Commands:
 Options:
     -d, --dir DIR       Where the rsm sockets be stored (default: /tmp/.rsm)
     -n, --max-conn N    Maximum number of connections (default: 128)
-    -r, --max-recv N    Maximum receiving MB (default: 64)
+    -r, --max-recv N    Maximum receiving MB (default: 0, unlimited)
     -c, --hook CMD      Command to eval when a client connects
     -w, --with CMD      Command to eval when rsm starts
     --ncat-flags FLAGS  Additional command line flags for ncat
