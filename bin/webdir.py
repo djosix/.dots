@@ -1107,15 +1107,15 @@ def run_with_gunicorn(app, host, port, ssl_context):
 
 def main():
     parser = ArgumentParser()
-    parser.add_argument('--root', type=path_type, default='.')
-    parser.add_argument('--host', type=str, default='0.0.0.0')
-    parser.add_argument('--port', type=int, default=9999)
-    parser.add_argument('--debug', action='store_true')
-    parser.add_argument('--https', action='store_true')
-    parser.add_argument('--https-host', type=str)
-    parser.add_argument('--basic-auth')
-    parser.add_argument('--no-list', '-L', action='store_true')
-    parser.add_argument('--no-modify', '-M', action='store_true')
+    parser.add_argument('--root', type=path_type, default='.', metavar='PATH', help='document root')
+    parser.add_argument('--host', type=str, default='0.0.0.0', help='bind host')
+    parser.add_argument('--port', type=int, default=9999, help='bind port')
+    parser.add_argument('--debug', action='store_true', help='enable Flask debug auto-reload')
+    parser.add_argument('--https', action='store_true', help='enable TLS')
+    parser.add_argument('--https-host', type=str, metavar='HOST', help='specified hostname for certificate')
+    parser.add_argument('--basic-auth', type=str, metavar='USER:PASS', help='authentication')
+    parser.add_argument('--no-list', '-L', action='store_true', help='disable directory listing')
+    parser.add_argument('--no-modify', '-M', action='store_true', help='disable modification feature')
     args = parser.parse_args()
 
     if args.basic_auth is not None:
