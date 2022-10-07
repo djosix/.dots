@@ -22,7 +22,7 @@ class Options(NamedTuple):
     @classmethod
     def parse_from(cls, argv: List[str]):
         prog, *argv = argv
-        parser = argparse.ArgumentParser(prog)
+        parser = argparse.ArgumentParser(os.path.basename(prog))
         parser.add_argument('target', metavar='[HOST:]PORT')
         parser.add_argument('--local-listen', '-l', metavar='[HOST:]PORT')
         parser.add_argument('--remote-listen', '-r', metavar='[HOST:]PORT')
