@@ -876,7 +876,7 @@ def view_handler(path='/'):
     return path
 
 def create_flask_app(root, basic_auth, no_list, no_modify):
-    app = Flask(__name__)
+    app = Flask(__name__, static_folder=None)
     handler = Handler(root, no_list, no_modify)
     handle = handler.handle
     if basic_auth:
