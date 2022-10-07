@@ -771,7 +771,6 @@ class Handler:
                 return self.create(path)
             elif action == 'delete':
                 return self.delete(path)
-                return self.create(path)
             elif action == 'new_folder':
                 return self.new_folder(path)
         abort(400, 'Unknown action.')
