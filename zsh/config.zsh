@@ -69,6 +69,9 @@ alias drs='dr --cap-add=SYS_PTRACE --security-opt seccomp=unconfined'
 
 # other
 function findname() { find . -name "*$1*"; }
+function lesser() {
+    less -S --shift 8 "$@"
+}
 
 # git
 alias ga="git add"
