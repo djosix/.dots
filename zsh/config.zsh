@@ -72,6 +72,16 @@ function findname() { find . -name "*$1*"; }
 function lesser() {
     less -S --shift 8 "$@"
 }
+function date() {
+    case "$1" in
+    s) command date +'%s' ;;
+    p) command date +'%Y-%m-%d %H:%M:%S' ;;
+    c) command date +'%Y%m%d%H%M%S' ;;
+    z) command date -u +"%Y-%m-%dT%H:%M:%SZ" ;;
+    i) command date +"%Y-%m-%dT%H:%M:%S%:z" ;;
+    *) command date "$@" ;;
+    esac
+}
 
 # git
 alias ga="git add"
