@@ -39,7 +39,7 @@ def get_ssh_base_argv(target):
     try:
         host = gethostbyname(host)
     except:
-        exit_with_message('error: cannot resolve: {!r}'.format(host))
+        print('warning: cannot resolve: {!r}'.format(host))
     argv = [
         'ssh', '-NTC',
         '-o', 'ServerAliveInterval=60',
