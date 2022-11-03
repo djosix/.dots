@@ -36,10 +36,10 @@ def get_ssh_base_argv(target):
         exit_with_message('error: invalid ssh target: {!r}'.format(target))
     info = match.groupdict()
     user, host, port = info['user'], info['host'], info['port']
-    try:
-        host = gethostbyname(host)
-    except:
-        print('warning: cannot resolve: {!r}'.format(host))
+    # try:
+    #     host = gethostbyname(host)
+    # except:
+    #     print('warning: cannot resolve: {!r}'.format(host))
     argv = [
         'ssh', '-NTC',
         '-o', 'ServerAliveInterval=60',
