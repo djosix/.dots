@@ -115,7 +115,7 @@ function inotify_watcher {
         echo 'error: inotifywait not found, please install inotify-tools first' >&2
         exit 1
     }
-    eval inotifywait -q -m -e close_write -- "$@"
+    eval inotifywait -q -m -e close_write -e modify -- "$@"
 }
 
 function watch {
