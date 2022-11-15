@@ -1,0 +1,33 @@
+#!/usr/bin/env python3
+
+import argparse
+from dateutil.parser import parse as parse_date # python3 -m pip install dateutil
+from datetime import datetime
+
+parser = argparse.ArgumentParser(__name__)
+parser.add_argument('input', metavar='INPUT')
+parser.add_argument('--timezone', '-z', type=int, default=None)
+parser.add_argument('--output', '-o', choices=('s', 'ms', 'us', 'iso', 'iso_s', 'iso_ms', 'iso_us'), default='s')
+args = parser.parse_args()
+
+timestamp = parse_date(args.input).timestamp()
+utc_datetime = datetime.utcfromtimestamp(timestamp)
+
+def add_Z_suffix(iso):
+    return iso + 'Z'
+
+if args.output == 's':
+    print(int(timestamp))
+elif args.output == 'ms':
+    print(int(timestamp * 1_000))
+elif args.output == 'us':
+    print(int(timestamp * 1_000_000))
+elif args.output == 'iso':
+    print(add_Z_suffix(utc_datetime.isoformat()))
+elif args.output == 'iso_s':
+    print(add_Z_suffix(utc_datetime.isoformat(timespec='seconds')))
+elif args.output == 'iso_ms':
+    print(add_Z_suffix(utc_datetime.isoformat(timespec='milliseconds')))
+elif args.output == 'iso_us':
+    print(add_Z_suffix(utc_datetime.isoformat(timespec='microseconds')))
+    
