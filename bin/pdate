@@ -13,16 +13,20 @@ def get_args():
     parser.add_argument('input',
                         metavar='INPUT',
                         nargs='?',
-                        default=datetime.now().isoformat())
+                        default=datetime.now().isoformat(),
+                        help='any date and time string')
     parser.add_argument('--timezone', '-z',
                         type=int,
-                        default=0)
+                        default=0,
+                        help='output timezone specified as an integer')
     parser.add_argument('--output', '-o',
                         choices=('int', 'rfc3339', 'iso8601'),
-                        default='int')
+                        default='int',
+                        help='output format')
     parser.add_argument('--unit', '-u',
                         choices=('s', 'ms', 'us'),
-                        default='s')
+                        default='s',
+                        help='output unit of time')
     return parser.parse_args()
 
 
