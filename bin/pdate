@@ -1,33 +1,62 @@
 #!/usr/bin/env python3
 
 import argparse
-from dateutil.parser import parse as parse_date # python3 -m pip install dateutil
-from datetime import datetime
+from dateutil.parser import (
+    # python3 -m pip install dateutil
+    parse as parse_date
+)
+from datetime import datetime, timezone, timedelta
 
-parser = argparse.ArgumentParser(__name__)
-parser.add_argument('input', metavar='INPUT')
-parser.add_argument('--timezone', '-z', type=int, default=None)
-parser.add_argument('--output', '-o', choices=('s', 'ms', 'us', 'iso', 'iso_s', 'iso_ms', 'iso_us'), default='s')
-args = parser.parse_args()
 
-timestamp = parse_date(args.input).timestamp()
-utc_datetime = datetime.utcfromtimestamp(timestamp)
+def get_args():
+    parser = argparse.ArgumentParser(__name__)
+    parser.add_argument('input',
+                        metavar='INPUT',
+                        nargs='?',
+                        default=datetime.now().isoformat())
+    parser.add_argument('--timezone', '-z',
+                        type=int,
+                        default=0)
+    parser.add_argument('--output', '-o',
+                        choices=('int', 'rfc3339', 'iso8601'),
+                        default='int')
+    parser.add_argument('--unit', '-u',
+                        choices=('s', 'ms', 'us'),
+                        default='s')
+    return parser.parse_args()
 
-def add_Z_suffix(iso):
-    return iso + 'Z'
 
-if args.output == 's':
-    print(int(timestamp))
-elif args.output == 'ms':
-    print(int(timestamp * 1_000))
-elif args.output == 'us':
-    print(int(timestamp * 1_000_000))
-elif args.output == 'iso':
-    print(add_Z_suffix(utc_datetime.isoformat()))
-elif args.output == 'iso_s':
-    print(add_Z_suffix(utc_datetime.isoformat(timespec='seconds')))
-elif args.output == 'iso_ms':
-    print(add_Z_suffix(utc_datetime.isoformat(timespec='milliseconds')))
-elif args.output == 'iso_us':
-    print(add_Z_suffix(utc_datetime.isoformat(timespec='microseconds')))
-    
+def check_args(args):
+    if args.output in ('int', 'rfc3339'):
+        assert args.timezone == 0
+
+
+def print_formatted_datetime(timestamp: float):
+    # Integer timestamps
+    if args.output == 'int':
+        multiplier = {'s': 1,
+                      'ms': 1_000,
+                      'us': 1_000_000}[args.unit]
+        return print(int(timestamp * multiplier))
+    # RFC3339
+    elif args.output == 'rfc3339':
+        utc_datetime = datetime.utcfromtimestamp(timestamp)
+        timespec = {'s': 'seconds',
+                    'ms': 'milliseconds',
+                    'us': 'microseconds'}[args.unit]
+        return print(utc_datetime.isoformat(timespec=timespec) + 'Z')
+    # ISO8601
+    elif args.output == 'iso8601':
+        tz = timezone(timedelta(hours=args.timezone))
+        utc_datetime = datetime.utcfromtimestamp(timestamp).astimezone(tz)
+        timespec = {'s': 'seconds',
+                    'ms': 'milliseconds',
+                    'us': 'microseconds'}[args.unit]
+        return print(utc_datetime.isoformat(timespec=timespec))
+
+
+if __name__ == '__main__':
+    args = get_args()
+    check_args(args)
+    timestamp = parse_date(args.input).timestamp()
+    print_formatted_datetime(timestamp)
