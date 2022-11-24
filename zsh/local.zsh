@@ -2,6 +2,7 @@
 
 #source $HOME/.dots/zsh/mouse.zsh && zle-toggle-mouse
 
+export HOMEBREW_NO_AUTO_UPDATE=1
 
 #PATH=":$PATH"
 #PATH=":$PATH"
