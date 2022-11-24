@@ -11,15 +11,7 @@ export PATH
 rbenv() {
     [ -d "$HOME/.rbenv" ] || get-rbenv
     unset -f rbenv
-   export PATH="$HOME/.rbenv/bin:$PATH"
-    eval "$(rbenv init -)"
-    rbenv $@
-}
-
-rbenv() {
-    [ -d "$HOME/.rbenv" ] || get-rbenv
-    unset -f rbenv
-   export PATH="$HOME/.rbenv/bin:$PATH"
+    export PATH="$HOME/.rbenv/bin:$PATH"
     eval "$(rbenv init -)"
     rbenv $@
 }
@@ -36,8 +28,9 @@ nvm() {
         nvm current
     fi
 }
-# lazy loading with nvm
-node() { { hash $0 || nvm; } >& /dev/null && unset -f "$0" && command "$0" "$@"; }
-yarn() { { hash $0 || nvm; } >& /dev/null && unset -f "$0" && command "$0" "$@"; }
-npm()  { { hash $0 || nvm; } >& /dev/null && unset -f "$0" && command "$0" "$@"; }
-npx()  { { hash $0 || nvm; } >& /dev/null && unset -f "$0" && command "$0" "$@"; }
+nvm_lazy_load_func_def='{ hash $0 || nvm; } >& /dev/null && unset -f "$0" && command "$0" "$@"'
+eval "node() { $nvm_lazy_load_func_def; }"
+eval "yarn() { $nvm_lazy_load_func_def; }"
+eval "npm() { $nvm_lazy_load_func_def; }"
+eval "npx() { $nvm_lazy_load_func_def; }"
+unset nvm_lazy_load_func_def
