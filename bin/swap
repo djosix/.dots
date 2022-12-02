@@ -1,17 +1,22 @@
 #!/bin/bash -e
 
+function stderr {
+    echo "$@"
+}
+
 temp="$(mktemp -u)"
 [[ $# != 2 ]] && {
-    echo 'invalid arguments'
+    stderr 'error: invalid arguments'
+    stderr "usage: $0 FILE1 FILE2"
     exit 1
 }
 if [[ -e $1 && -e $2 ]]; then
-    echo "swapping files $1 <-> $2"
+    stderr "swapping files $1 <-> $2"
     mv -v "$1" "$temp"
     mv -v "$2" "$1"
     mv -v "$temp" "$2"
 else
-    echo "cannot swap files $1 and $2"
+    echo "error: cannot swap files $1 and $2"
     exit 1
 fi
 
