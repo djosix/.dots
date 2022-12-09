@@ -1,0 +1,32 @@
+#!/bin/bash
+
+function has_command {
+    command -v "$@" >/dev/null 2>&1
+}
+
+if [[ $# == 0 ]]; then
+    declare program="$(basename "$0")"
+    {
+        echo 'EXAMPLES'
+        echo "  $program -g PATTERN -- CMD ARG1 ARG2 ...  # glob"
+        echo "  $program -G PATTERN -- CMD ARG1 ARG2 ...  # inverse glob"
+        echo "  $program -r PATTERN -- CMD ARG1 ARG2 ...  # regex"
+        echo "  $program -R PATTERN -- CMD ARG1 ARG2 ...  # inverse regex"
+        echo "NOTE"
+        echo "  This command requires that 'reflex' is installed."
+        echo "  To install it, run:"
+        echo "    go install github.com/cespare/reflex@latest"
+    } 1>&2
+    exit 1
+fi
+
+if ! has_command reflex; then
+    {
+        echo 'error: reflex must be installed to use this command.'
+        echo 'to install reflex, run `go install github.com/cespare/reflex@latest`.'
+    } 1>&2
+    exit 1
+fi
+
+set -x
+command reflex -d none -s "$@"
