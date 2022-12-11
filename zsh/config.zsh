@@ -44,14 +44,14 @@ alias la='ls -alh'
 alias ll='ls -lh'
 
 # cd
-alias cs='cd "$HOME/Space"'
-alias cdd='cd "$HOME/Desktop"'
-alias cdl='cd "$HOME/Downloads"'
-alias cdt='cd "$HOME/Tools"'
-alias cdc='cd "$HOME/Documents"'
-alias cdb='cd "$HOME/Dropbox"'
-alias cds='cd "$HOME/Dropbox/Space"'
-alias tmp='mkdir -p "/tmp/$USER"; command cd "/tmp/$USER"'
+alias cs='cd "$HOME/Space"; :'
+alias cdd='cd "$HOME/Desktop"; :'
+alias cdl='cd "$HOME/Downloads"; :'
+alias cdt='cd "$HOME/Tools"; :'
+alias cdc='cd "$HOME/Documents"; :'
+alias cdb='cd "$HOME/Dropbox"; :'
+alias cds='cd "$HOME/Dropbox/Space"; :'
+alias tmp='mkdir -p "/tmp/$USER"; cd "/tmp/$USER"; :'
 
 # youtube-dl
 if command_exists "youtube-dl"; then
