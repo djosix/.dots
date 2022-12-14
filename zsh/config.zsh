@@ -1,7 +1,7 @@
 #!/bin/bash
 
 function command_exists() {
-    command -v $1 >/dev/null 2>&1
+    command -v "$1" >/dev/null 2>&1
 }
 
 #===============================================
@@ -19,10 +19,10 @@ if [[ -d $HOME/.bin ]]; then
 fi
 
 # locale
-export LC_CTYPE=en_US.UTF-8
-export LC_ALL=en_US.UTF-8
-export LANG=en_US.UTF-8
-export LANGUAGE=en_US.UTF-8
+export LC_CTYPE="en_US.UTF-8"
+export LC_ALL="en_US.UTF-8"
+export LANG="en_US.UTF-8"
+export LANGUAGE="en_US.UTF-8"
 
 # EDITOR
 if command_exists "vim"; then
@@ -96,7 +96,7 @@ function date() {
 
 # git
 function ga      { command git add "$@"; }
-function gaa     { command git add -A "$@"; }
+function gaa     { command git add -A; }
 function gau     { command git add -u "$@"; }
 function gst     { command git status "$@"; }
 function glg     { command git log "$@"; }
@@ -104,7 +104,7 @@ function glgg    { command git log --all --decorate --oneline --graph "$@"; }
 function ggi     { command git init "$@"; }
 function gra     { command git remote add "$@"; }
 function gcm     { command git commit -m "$@"; }
-function gct     { command git commit -m "$(date +"Commit %Y/%m/%d %H:%M:%S")" "$@"; }
+function gct     { command git commit -m "$(date +"Commit %Y/%m/%d %H:%M:%S")"; }
 function gcl     { command git clone "$@"; }
 function gcl1    { command git clone --depth 1 "$@"; }
 function gck     { command git checkout "$@"; }
@@ -120,8 +120,8 @@ function grst    { command git reset "$@"; }
 
 function int {
     local code="$?"
-    if [[ $# > 0 ]]; then
-        eval "$@"
+    if [[ $# -gt 0 ]]; then
+        "$@"
         local code="$?"
     fi
     echo "$code"
@@ -130,8 +130,8 @@ function int {
 
 function bool {
     local code="$?"
-    if [[ $# > 0 ]]; then
-        eval "$@"
+    if [[ $# -gt 0 ]]; then
+        "$@"
         local code="$?"
     fi
     (( code == 0 )) && echo true || echo false
@@ -141,14 +141,13 @@ function bool {
 #
 # Native aliases
 #
-[[ $USER = root ]] && SUDO=aa || SUDO=sudo
 case "$(uname)" in
     Linux)
         alias ls="ls --color=auto"
         alias dfc='df -h -x{overlay,tmpfs,squashfs,devtmpfs}' # df clean
         test -d "/dev/shm" && function ram {
             mkdir -p "/dev/shm/$USER"
-            cd "/dev/shm/$USER"
+            cd "/dev/shm/$USER" || return
         }
         ;;
 
