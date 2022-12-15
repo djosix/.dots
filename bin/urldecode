@@ -9,8 +9,11 @@ def file_rt(path):
     return open(path, 'rt')
 
 parser = argparse.ArgumentParser(sys.argv[0])
+parser.add_argument('--plus', '-p', action='store_true', help='decode "+" to " "')
 parser.add_argument('--file', '-f', default='-', help='input file', type=file_rt)
 args = parser.parse_args()
 
 text = args.file.read()
+if args.plus:
+    text = text.replace('+', '%20')
 sys.stdout.buffer.write(unquote_to_bytes(text))
