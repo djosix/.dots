@@ -111,7 +111,7 @@ function gck     { command git checkout "$@"; }
 function gbh     { command git branch "$@"; }
 function gbc     { command git branch --show-current; }
 function gpsh    { command git push "$@"; }
-function gpom    { command git push origin "$(gbc)"; }
+function gpom    { command git push origin "$(gbc)" "$@"; }
 function ggg     { gaa && gct && gpom; }
 function gpl     { command git pull "$@"; }
 function gplom   { command git pull origin "$(gbc)"; }
