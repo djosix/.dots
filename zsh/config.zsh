@@ -138,6 +138,12 @@ function bool {
     return "$code"
 }
 
+function loop {
+    while true; do
+        "$@"
+    done
+}
+
 #
 # Native aliases
 #
