@@ -144,6 +144,23 @@ function loop {
     done
 }
 
+function loopwait {
+    [[ "$1" =~ ^[0-9]+$ && "$#" -gt 1 ]] || {
+        >&2 echo "usage: $0 SECONDS COMMAND..."
+        return 1
+    }
+    declare -i delay="$1"
+    shift
+    while true; do
+        declare -i start="$(date '+%s')"
+        "$@"
+        declare -i now="$(date '+%s')"
+        if (( now - start < delay )); then
+            sleep "$(( delay - now + start ))"
+        fi
+    done
+}
+
 #
 # Native aliases
 #
