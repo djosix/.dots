@@ -1036,9 +1036,15 @@ def gencert(host: str, common_name=None):
             print(f'[SSL] renewing {crt_path}')
             os.remove(crt_path)
 
+    crt_cn = 'localhost'
+    if common_name is None:
+        print(f'[SSL] WARNING: you are using default CN {crt_cn!r}')
+        print('      change this by adding --https-host HOSTNAME')
+    else:
+        crt_cn = common_name
+
     if not isfile(crt_path) or is_crt_dirty:
         print(f'[SSL] generating {crt_path}')
-        crt_cn = 'webdir.local'
         crt_san = [x509.IPAddress(ipaddress.ip_address(ip))
                    for ip in get_available_hosts(host)]
         if common_name is not None:
