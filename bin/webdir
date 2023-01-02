@@ -118,7 +118,7 @@ SCRIPT = '''
 function refreshFilterResult(filterRegex) {
     let regex;
     try {
-        regex = new RegExp(filterRegex);
+        regex = new RegExp(filterRegex, 'i');
     } catch (e) {
         regex = new RegExp(/.*/);
     }
@@ -886,7 +886,7 @@ class Handler:
                         ]),
                         T('.section', [
                             T('button', {'type': 'button', 'onclick': 'location.href = {}'.format(json.dumps(os.path.dirname(webpath)))}, '..'), ' ',
-                            T('input.name-filter', {'type': 'text', 'placeholder': 'RegExp name filter', 'autofocus': ''}), ' ',
+                            T('input.name-filter', {'type': 'text', 'placeholder': 'RegExp name filter', 'autofocus': 'true', 'spellcheck': 'false'}), ' ',
                             *modification_buttons,
                         ]),
                         T('.section', [
