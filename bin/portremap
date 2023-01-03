@@ -7,7 +7,7 @@ set -e -o pipefail
     exit 1
 }
 
-[[ `uname` == Linux ]] || {
+[[ `uname` == "Linux" ]] || {
     echo "Error: This script can only be run on Linux"
     exit 1
 }
@@ -20,16 +20,16 @@ hash sleep || {
     exit 1
 }
 
-[[ $USER == root ]] || {
+[[ $USER == "root" ]] || {
     echo "Error: This command should only be run by root"
     exit 1
 }
 
 
 function _sysctl_setup {
-    SYSCTL_CONFIG_NAME='net.ipv4.ip_forward'
-    SYSTEL_TARGET_VALUE='1'
-    SYSCTL_RESTORE_ARG="$(sysctl "$SYSCTL_CONFIG_NAME" | tr -d ' ' | grep -F "$SYSCTL_CONFIG_NAME")"
+    declare SYSCTL_CONFIG_NAME='net.ipv4.ip_forward'
+    declare SYSTEL_TARGET_VALUE='1'
+    declare SYSCTL_RESTORE_ARG="$(sysctl "$SYSCTL_CONFIG_NAME" | tr -d ' ' | grep -F "$SYSCTL_CONFIG_NAME")"
 
     sysctl -w "$SYSCTL_CONFIG_NAME=$SYSTEL_TARGET_VALUE"
 }
@@ -40,8 +40,8 @@ function _sysctl_restore {
 }
 
 function _iptables_setup {
-    IPTABLES_UNIQUE_ID="$(printf '%04x%04x%04x%04x' $RANDOM $RANDOM $RANDOM $RANDOM)"
-    IPTABLES_PREFIX='x-remap-port'
+    declare IPTABLES_UNIQUE_ID="$(printf '%04x%04x%04x%04x' $RANDOM $RANDOM $RANDOM $RANDOM)"
+    declare IPTABLES_PREFIX='x-remap-port'
     IPTABLES_COMMENT="$IPTABLES_PREFIX:$IPTABLES_UNIQUE_ID"
     
     (
@@ -77,8 +77,8 @@ function restore {
     _iptables_restore
 }
 
-declare -i PORT=$1
-declare -i TARGET_PORT=$2
+declare -i PORT="$1"
+declare -i TARGET_PORT="$2"
 
 trap restore EXIT
 setup

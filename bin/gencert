@@ -124,3 +124,30 @@ while (( $# > 0 )); do
 done
 
 GenerateCert
+
+
+exit
+# just to backup old scripts
+
+: gencert2 <<EOF
+#!/bin/bash
+
+[[ -f root-ca-key.pem ]] || \
+    openssl genrsa -out root-ca-key.pem 2048
+[[ -f root-ca.pem ]] || \
+    openssl req -new -x509 -sha256 -key root-ca-key.pem -out root-ca.pem -days 3650
+
+for name in $@; do
+    openssl genrsa -out $name-key-temp.pem 2048
+    openssl pkcs8 -inform PEM -outform PEM -in $name-key-temp.pem -topk8 -nocrypt -v1 PBE-SHA1-3DES -out $name-key.pem
+    openssl req -new -key $name-key.pem -out $name.csr
+    openssl x509 -req -in $name.csr -CA root-ca.pem -CAkey root-ca-key.pem -CAcreateserial -sha256 -out $name.pem -days 730
+    rm $name-key-temp.pem $name.csr
+done
+EOF
+
+: genrsa <<EOF
+#!/bin/sh
+openssl genrsa -out private.pem $1
+openssl rsa -in private.pem -pubout -out public.pem
+EOF

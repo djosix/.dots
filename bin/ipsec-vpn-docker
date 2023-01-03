@@ -1,5 +1,5 @@
 #!/bin/bash
 
-WORKDIR=$PWD
-cd $HOME/.dots/other/ipsec-vpn-docker
-WORKDIR=$WORKDIR bash main.sh $@
+export WORKDIR="$PWD"
+cd "$HOME/.dots/other/ipsec-vpn-docker"
+bash main.sh "$@"

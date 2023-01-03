@@ -1,7 +1,7 @@
 #!/bin/bash
 
 [[ $# = 0 ]] && {
-    echo -e "Example:\n  $(basename $0) google.com:443"
+    echo -e "Example:\n  $(basename "$0") google.com:443"
     exit
 }
-openssl s_client -showcerts -connect $@ < /dev/null | openssl x509 -text | less -p "Subject Alternative Name"
+openssl s_client -showcerts -connect "$@" < /dev/null | openssl x509 -text | less -p "Subject Alternative Name"
