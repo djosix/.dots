@@ -1,5 +1,0 @@
-#!/bin/bash
-
-export WORKDIR="$PWD"
-cd "$HOME/.dots/other/openvpn-docker"
-bash main.sh "$@"

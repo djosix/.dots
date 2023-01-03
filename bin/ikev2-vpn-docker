@@ -1,5 +1,0 @@
-#!/bin/bash
-
-export WORKDIR="$PWD"
-cd "$HOME/.dots/other/ikev2-vpn-docker"
-bash main.sh "$@"
