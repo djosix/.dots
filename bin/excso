@@ -1,6 +1,6 @@
 #!/bin/bash -e
 
-prog=$(basename $1)
+prog=$(basename "$1")
 dir="./static_$prog"
 echo "==> Packing '$1' to '$dir'..."
 

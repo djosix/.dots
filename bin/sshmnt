@@ -1,15 +1,16 @@
 #!/bin/bash
 
 function error {
-    echo "[error] $@"
+    echo "[error] $*"
     exit 1
 }
 function info {
-    echo "[info] $@"
+    echo "[info] $*"
 }
 
 function print_usage {
-    local prog=$(basename "$0")
+    local prog
+    prog="$(basename "$0")"
     echo 'Usage:'
     echo
     echo "    \$ $prog <mount_point> <[user@]host:path> [...ssh_args]"
@@ -22,7 +23,8 @@ function check_command {
 check_command sshfs
 check_command fusermount
 
-declare uname="$(uname)"
+declare uname
+uname="$(uname)"
 [[ "$uname" = "Linux" || "$uname" = "Darwin" ]] || error "Invalid OS: $uname"
 
 [[ "$1" = '-h' || "$1" = '--help' ]] && {
@@ -42,7 +44,8 @@ function try_unmount_dir {
 try_unmount_dir && info "Unmounted: $dir"
 
 shift
-declare full_dir_path="$(realpath "$dir")"
+declare full_dir_path
+full_dir_path="$(realpath "$dir")"
 
 
 if [[ -d "$dir" ]]; then

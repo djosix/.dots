@@ -7,7 +7,8 @@ X=$1
     exit
 }
 
-pids=`sudo ps ax \
+declare pids
+pids="$(sudo ps ax \
     | sed 1d \
     | awk '{ PID=$1; $1=$2=$3=$4=""; print PID $0 }' \
     | grep -E "$X" \
@@ -15,14 +16,14 @@ pids=`sudo ps ax \
     | grep -v grep \
     | tee /dev/stderr \
     | awk '{ print $1 }' \
-    | xargs`
+    | xargs)"
 
-if [[ $pids ]]; then
+if [[ "$pids" ]]; then
     echo
-    read -p "Kill $pids [Y/n] " K
+    read -r -p "Kill $pids [Y/n] " K
     if [[ $K != n && $K != N ]]; then
         echo "Killing $pids"
-        sudo kill -9 $pids
+        sudo kill -9 "$pids"
     fi
 fi
 
