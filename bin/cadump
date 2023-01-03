@@ -1,8 +1,14 @@
 #!/bin/bash -e
 
+if [[ $# == 0 ]]; then
+    echo "example:"
+    echo " \$ $(basename "$0") www.google.com:443"
+    exit 1
+fi
+
 {
     echo | \
-    openssl s_client -showcerts -connect $@ | \
+    openssl s_client -showcerts -connect "$@" | \
     openssl x509 -text | \
     sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p'
 } 2>/dev/null
