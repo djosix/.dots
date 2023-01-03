@@ -5,7 +5,8 @@ function has_command {
 }
 
 if [[ $# == 0 ]]; then
-    declare program="$(basename "$0")"
+    declare program
+    program="$(basename "$0")"
     {
         echo 'EXAMPLES'
         echo "  $program -g PATTERN -- CMD ARG1 ARG2 ...  # glob"
@@ -23,7 +24,7 @@ fi
 if ! has_command reflex; then
     {
         echo 'error: reflex must be installed to use this command.'
-        echo 'to install reflex, run `go install github.com/cespare/reflex@latest`.'
+        echo 'to install reflex, run "go install github.com/cespare/reflex@latest".'
     } 1>&2
     exit 1
 fi

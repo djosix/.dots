@@ -28,7 +28,7 @@ function get_date {
 
 function print {
     if (( VERBOSE )); then
-        echo "${ECHO_ARGS[@]}" "[$(get_date)] $@"
+        echo "${ECHO_ARGS[@]}" "[$(get_date)] $*"
     fi
 }
 
@@ -40,7 +40,7 @@ function print_last_line {
 }
 
 function show_help {
-    PROGRAM="$(basename $0)"
+    PROGRAM="$(basename "$0")"
     echo "Usage: $PROGRAM [-c COMMAND] [-t INTERVAL] [-v] CONDITION"
     echo "Description:"
     echo "  This script executes arbitrary command specified by the user"
@@ -97,19 +97,19 @@ while [[ $# -gt 0 ]]; do
 done
 
 [[ $# == 0 ]] && show_help_and_panic
-CONDITION="$@"
+CONDITION=("$@")
 [[ -z $COMMAND ]] && COMMAND='echo "!!! STATE CHANGE DETECTED !!!"'
 [[ -z $INTERVAL ]] && INTERVAL=1
 print "INTERVAL = $INTERVAL"
 print "COMMAND = ($COMMAND)"
 print "VERBOSE = $VERBOSE"
 print "REPEAT = $REPEAT"
-print "CONDITION = ($CONDITION)"
+print "CONDITION = (${CONDITION[*]})"
 
 (( VERBOSE )) && echo
 while true; do
-    if (eval "$CONDITION"); then
-        (eval $COMMAND)
+    if (eval "${CONDITION[*]}"); then
+        (eval "$COMMAND")
         (( VERBOSE )) && echo
         (( REPEAT )) || break
     fi

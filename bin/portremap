@@ -7,15 +7,17 @@ set -e -o pipefail
     exit 1
 }
 
-[[ `uname` == "Linux" ]] || {
+[[ "$(uname)" == "Linux" ]] || {
     echo "Error: This script can only be run on Linux"
     exit 1
 }
 
-hash iptables && \
-hash iptables-save && \
-hash sysctl && \
-hash sleep || {
+{
+    hash iptables && \
+    hash iptables-save && \
+    hash sysctl && \
+    hash sleep
+} || {
     echo "Error: Some of the required commands do not exist"
     exit 1
 }
@@ -29,7 +31,7 @@ hash sleep || {
 function _sysctl_setup {
     declare SYSCTL_CONFIG_NAME='net.ipv4.ip_forward'
     declare SYSTEL_TARGET_VALUE='1'
-    declare SYSCTL_RESTORE_ARG="$(sysctl "$SYSCTL_CONFIG_NAME" | tr -d ' ' | grep -F "$SYSCTL_CONFIG_NAME")"
+    # declare SYSCTL_RESTORE_ARG="$(sysctl "$SYSCTL_CONFIG_NAME" | tr -d ' ' | grep -F "$SYSCTL_CONFIG_NAME")"
 
     sysctl -w "$SYSCTL_CONFIG_NAME=$SYSTEL_TARGET_VALUE"
 }
@@ -40,7 +42,8 @@ function _sysctl_restore {
 }
 
 function _iptables_setup {
-    declare IPTABLES_UNIQUE_ID="$(printf '%04x%04x%04x%04x' $RANDOM $RANDOM $RANDOM $RANDOM)"
+    declare IPTABLES_UNIQUE_ID
+    IPTABLES_UNIQUE_ID="$(printf '%04x%04x%04x%04x' $RANDOM $RANDOM $RANDOM $RANDOM)"
     declare IPTABLES_PREFIX='x-remap-port'
     IPTABLES_COMMENT="$IPTABLES_PREFIX:$IPTABLES_UNIQUE_ID"
     
