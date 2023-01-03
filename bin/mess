@@ -1,13 +1,36 @@
-#!/bin/bash
+#!/usr/bin/env python3
 
-eval `base64 --decode <<EOF
-W1sgJCMgPT0gMCBdXSAmJiBYPSgiJFJBTkRPTSIgIiRSQU5ET00iICIkUkFORE9NIiAiJFJBTkRP
-TSIpIHx8IFg9KCIkQCIpOyB7IGVjaG8gLW4gJyc7IHsgZWNobyAtbiAnTWU1NSc7IHsgZWNobyAt
-biAnTWU1NU1lNTUnOyB7IGVjaG8gLW4gJ01lNTVNZTU1TWU1NSc7IHsgZWNobyAtbiAnTWU1NU1l
-NTVNZTU1TWU1NSc7IGZvciBzIGluICR7WFtAXX07IGRvIGVjaG8gIk1lNTVNZTU1TWU1NU1lNTVN
-ZTU1JHMiOyBkb25lOyBlY2hvIC1uICdNZTU1TWU1NU1lNTVNZTU1JzsgfSB8IG1kNXN1bSB8IHJl
-diB8IHh4ZCAtciAtcDsgZWNobyAtbiAnTWU1NU1lNTVNZTU1JzsgfSB8IHNoYTFzdW0gfCByZXYg
-fCB4eGQgLXIgLXA7IGVjaG8gLW4gJ01lNTVNZTU1JzsgfSB8IG1kNXN1bSB8IHJldiB8IHh4ZCAt
-ciAtcDsgZWNobyAtbiAnTWU1NSc7IH0gfCBzaGExc3VtIHwgcmV2IHwgeHhkIC1yIC1wOyBlY2hv
-IC1uICcnOyB9IHwgYmFzZTY0IHwgc2VkICdzL1teYS16QS1aMC05XS8vZycK
-EOF`
+import string
+import sys
+import hashlib
+
+
+def mess(input: str, n: int) -> str:
+    charset = string.ascii_letters + string.digits
+    data = input.encode() + bytes([n % 256])
+    data = data[::-1] + bytes([b ^ i for i, b in enumerate(data)])
+    data = hashlib.sha256(data + b'djosix' + data[::-1]).digest()
+    selected = []
+    for i in range(n):
+        data = bytes((*data, data[i % len(data)], *data[::-1]))
+        data = hashlib.sha256(data).digest()
+        selected.append(charset[int.from_bytes(data, 'big') % len(charset)])
+    return ''.join(selected)
+
+
+if __name__ == '__main__':
+    if len(sys.argv) not in [3]:
+        print('usage: {} <length> <string>'.format(sys.argv[0]), file=sys.stderr)
+        sys.exit(1)
+
+    if not sys.argv[1].isdigit():
+        print('error: {!r} cannot be converted into length'.format(sys.argv[1]), file=sys.stderr)
+        sys.exit(1)
+
+    n = int(sys.argv[1])
+
+    if n < 1 or n > 128:
+        print('error: N={} must be a value in [1, 128]', file=sys.stderr)
+        sys.exit(1)
+
+    print(mess(sys.argv[2], n))
