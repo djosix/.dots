@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 
-import argparse
+import sys
 import os
 import re
-from socket import gethostbyname
-import sys
-from typing import List, NamedTuple
+import argparse
 import subprocess as sp
+from socket import gethostbyname
+from typing import List, NamedTuple
 
 
 def exit_with_message(msg):
@@ -104,14 +104,15 @@ def run(opts: Options, ssh_base_argv: List[str]):
         exit_with_message('unreachable')
 
     argv = list(map(str, argv))
-    print('info: options: {!r}'.format(opts))
-    print('info: command: {!r}'.format(argv))
+    print('info: {!r}'.format(opts))
+    print('info: {!r}'.format(' '.join(argv)))
+    print('info: press ctrl+c to exit')
 
     while True:
         try:
             sp.Popen(argv).wait()
         except KeyboardInterrupt:
-            exit_with_message('[exiting]')
+            exit_with_message('\n[exiting]')
 
 
 if __name__ == '__main__':
