@@ -2,488 +2,481 @@
 # Author: djosix
 # License: MIT
 
+# python3 -m pip install -U flask flask_httpauth werkzeug cryptography gunicorn
+# autopep8 --max-line-length 130 -i `which webdir`
+
 import json
 import re
 import os
+import sys
 import random
 import string
-import ipaddress
-import sys
-import socket
 import enum
 import base64
 import traceback
-import importlib
-import subprocess as sp
+import textwrap
 from datetime import datetime, timedelta
-from typing import List, NamedTuple, Optional, Union
+from typing import List, NamedTuple, Union, Optional, Tuple
 from argparse import ArgumentParser
 from contextlib import suppress
+from dataclasses import dataclass
 
-while True:
-    try:
-        from flask import (
-            Flask, request, abort, escape, redirect, make_response, jsonify
-        )
-        from flask.helpers import send_file
-        from flask_httpauth import HTTPBasicAuth
-        from werkzeug.serving import get_interface_ip
-        from werkzeug.utils import secure_filename
-        if importlib.util.find_spec('cryptography') is None:
-            raise ImportError("No module named 'cryptography'")
-        break
-    except ImportError as e:
-        print('error:', str(e))
-        while True:
-            try:
-                ans = input(
-                    'do you want to install required packages? [y/N] '
-                ).upper().strip()
-            except KeyboardInterrupt:
-                ans = 'N'
-            if not ans:
-                ans = 'N'
-            if ans in 'YN':
-                break
-        if ans == 'N':
-            sys.exit()
-        sp.check_call([sys.executable, '-m', 'pip', 'install',
-                       'flask', 'flask_httpauth', 'werkzeug', 'cryptography'])
-        continue
-    except Exception:
-        print('error: unknown error')
-        print(traceback.format_exc())
-        sys.exit(1)
 
-STYLE = '''
-* {
-    font-family: monospace;
-}
-body,div,span,table,tr,tbody,thead,td,th {
-    padding: 0px;
-    margin: 0px;
-    border: 0px;
-}
-.container {
-    padding-top: 1em;
-    padding-left: 1em;
-    padding-right: 1em;
-}
-.section {
-    padding-bottom: 1em;
-}
-.table-header-link {
-    font-weight: bold;
-    // font-style: italic;
-}
-.table-cell-checkbox {
-    padding: 0.25em 0.25em;
-}
-.table-cell-normal {
-    padding: 0.25em 0.5em;
-}
-.table-cell-icon {
-    padding-left: 0.5em;
-}
-.menu-item {
-    display: inline-block;
-    margin-right: 0.5em;
-}
-.table-header {
-    border-bottom: 1px solid black;
-}
-.table {
-    border-collapse: collapse;
-    display: block;
-    white-space: nowrap;
-}
-.hidden {
-    display: none;
-}
-.mark {
-    background-color: yellow;
-}
-.table-header-link[data-order=desc]::after {
-    content: "-";
-}
-.table-header-link[data-order=asc]::after {
-    content: "+";
-}
-.table-row:hover {
-    background-color: #F0F0F0;
-}
-'''
+def exit_with_package_import_error(e: ImportError):
+    assert isinstance(e, ImportError)
+    REQUIRED_PACKAGES = [
+        'flask',
+        'flask_httpauth',
+        'werkzeug',
+        'cryptography',
+        'gunicorn',
+    ]
+    print(traceback.format_exc())
+    print('You must install all the required packages:')
+    print('  {} -m pip install {}'.format(sys.executable, ' '.join(REQUIRED_PACKAGES)))
+    sys.exit(1)
 
-SCRIPT = '''
-function refreshFilterResult(filterRegex) {
-    let regex;
-    try {
-        regex = new RegExp(filterRegex, 'i');
-    } catch (e) {
-        regex = new RegExp(/.*/);
+
+try:
+    from flask import (
+        Flask, request, abort, escape, redirect, make_response, jsonify
+    )
+    from flask.helpers import send_file
+    from flask_httpauth import HTTPBasicAuth
+    from werkzeug.utils import secure_filename
+except ImportError as e:
+    exit_with_package_import_error(e)
+
+
+class Constant:
+    STYLE = textwrap.dedent('''
+    * {
+        font-family: monospace;
     }
-    document.querySelectorAll('.table-row').forEach(function (el) {
-        let entryName = el.getAttribute('data-sort-name');
-        if (regex.test(entryName)) {
-            el.classList.remove('hidden');
-        } else {
-            el.classList.add('hidden');
+    body,div,span,table,tr,tbody,thead,td,th {
+        padding: 0px;
+        margin: 0px;
+        border: 0px;
+    }
+    .container {
+        padding-top: 1em;
+        padding-left: 1em;
+        padding-right: 1em;
+    }
+    .section {
+        padding-bottom: 1em;
+    }
+    .table-header-link {
+        font-weight: bold;
+        // font-style: italic;
+    }
+    .table-cell-checkbox {
+        padding: 0.25em 0.25em;
+    }
+    .table-cell-normal {
+        padding: 0.25em 0.5em;
+    }
+    .table-cell-icon {
+        padding-left: 0.5em;
+    }
+    .menu-item {
+        display: inline-block;
+        margin-right: 0.5em;
+    }
+    .table-header {
+        border-bottom: 1px solid black;
+    }
+    .table {
+        border-collapse: collapse;
+        display: block;
+        white-space: nowrap;
+    }
+    .hidden {
+        display: none;
+    }
+    .mark {
+        background-color: yellow;
+    }
+    .table-header-link[data-order=desc]::after {
+        content: "-";
+    }
+    .table-header-link[data-order=asc]::after {
+        content: "+";
+    }
+    .table-row:hover {
+        background-color: #F0F0F0;
+    }
+    ''')
+
+    SCRIPT = textwrap.dedent('''
+    function refreshFilterResult(filterRegex) {
+        let regex;
+        try {
+            regex = new RegExp(filterRegex, 'i');
+        } catch (e) {
+            regex = new RegExp(/.*/);
         }
+        document.querySelectorAll('.table-row').forEach(function (el) {
+            let entryName = el.getAttribute('data-sort-name');
+            if (regex.test(entryName)) {
+                el.classList.remove('hidden');
+            } else {
+                el.classList.add('hidden');
+            }
+        });
+    }
+
+    document.querySelector('input.name-filter').addEventListener('input', function (e) {
+        e.preventDefault();
+        refreshFilterResult(e.target.value);
     });
-}
 
-document.querySelector('input.name-filter').addEventListener('input', function (e) {
-    e.preventDefault();
-    refreshFilterResult(e.target.value);
-});
+    function refreshButtons() {
+        let checkboxes = [...document.querySelectorAll('input.table-row-checkbox')];
+        let selected = checkboxes.filter(el => el.checked);
+        let uploadButton = document.querySelector('button#upload');
+        if (uploadButton) {
+            if (selected.length > 0 || !writable && modifiable) {
+                uploadButton.setAttribute('disabled', '');
+            } else {
+                uploadButton.removeAttribute('disabled');
+            }
+        }
+        let deleteButton = document.querySelector('button#delete');
+        if (deleteButton) {
+            if (selected.length > 0 && writable && modifiable) {
+                deleteButton.removeAttribute('disabled');
+            } else {
+                deleteButton.setAttribute('disabled', '');
+            }
+        }
+        let newFolderButton = document.querySelector('button#newfolder');
+        if (newFolderButton && !writable) {
+            newFolderButton.setAttribute('disabled', '');
+        }
+    }
 
-function refreshButtons() {
-    let checkboxes = [...document.querySelectorAll('input.table-row-checkbox')];
-    let selected = checkboxes.filter(el => el.checked);
+    function refreshCheckboxState(changedCheckBox) {
+        let checkboxAll = document.querySelector('input.table-row-checkbox-all');
+        let checkboxes = document.querySelectorAll('input.table-row-checkbox');
+        if (changedCheckBox === checkboxAll) {
+            checkboxes.forEach(function (checkbox) {
+                checkbox.checked = checkboxAll.checked;
+            });
+        } else {
+            let allChecked = true;
+            for (let checkbox of checkboxes) {
+                if (!checkbox.checked) {
+                    allChecked = false;
+                    break;
+                }
+            }
+            checkboxAll.checked = allChecked;
+        }
+    }
+
+    document.querySelectorAll('input.table-row-checkbox-all,input.table-row-checkbox').forEach(function (checkbox) {
+        checkbox.addEventListener('input', function (e) {
+            e.preventDefault();
+            refreshCheckboxState(e.target);
+            refreshButtons();
+        });
+    });
+
+    function refreshTableRowOrder(criterion, sign) {
+        criterion ||= x => x.getAttribute('data-sort-order');
+        sign = Math.sign(sign || 1);
+        let table = document.querySelector('table.table');
+        let rows = [...table.querySelectorAll('.table-row')];
+        console.log(rows);
+        rows.sort((a, b) => (criterion(a) > criterion(b) ? sign : -sign));
+        for (let el of rows) {
+            el.remove();
+            table.appendChild(el);
+        }
+    }
+
+    function createUploadForm(action = '') {
+        let form = document.createElement('form');
+        form.setAttribute('action', action);
+        form.setAttribute('method', 'post');
+        form.setAttribute('enctype', 'multipart/form-data');
+        form.style.display = 'none';
+
+        form.appendChild(function () {
+            let action = document.createElement('input');
+            action.setAttribute('type', 'hidden');
+            action.setAttribute('name', 'action');
+            action.setAttribute('value', 'upload');
+            return action;
+        }());
+
+        let file = document.createElement('input');
+        file.setAttribute('type', 'file');
+        file.setAttribute('name', 'file');
+        file.setAttribute('multiple', '');
+        file.addEventListener('change', function fileChangeListener(e) {
+            e.target.removeEventListener('change', fileChangeListener);
+            if (e.target.files.length > 0) {
+                document.body.appendChild(form);
+                form.submit();
+            }
+        });
+        form.appendChild(file);
+
+        return { form, file };
+    }
+
+    function uploadFiles(action = '') {
+        let obj = createUploadForm(action);
+        obj.file.click();
+    }
+
     let uploadButton = document.querySelector('button#upload');
     if (uploadButton) {
-        if (selected.length > 0 || !writable && modifiable) {
-            uploadButton.setAttribute('disabled', '');
-        } else {
-            uploadButton.removeAttribute('disabled');
-        }
-    }
-    let deleteButton = document.querySelector('button#delete');
-    if (deleteButton) {
-        if (selected.length > 0 && writable && modifiable) {
-            deleteButton.removeAttribute('disabled');
-        } else {
-            deleteButton.setAttribute('disabled', '');
-        }
-    }
-    let newFolderButton = document.querySelector('button#newfolder');
-    if (newFolderButton && !writable) {
-        newFolderButton.setAttribute('disabled', '');
-    }
-}
-
-function refreshCheckboxState(changedCheckBox) {
-    let checkboxAll = document.querySelector('input.table-row-checkbox-all');
-    let checkboxes = document.querySelectorAll('input.table-row-checkbox');
-    if (changedCheckBox === checkboxAll) {
-        checkboxes.forEach(function (checkbox) {
-            checkbox.checked = checkboxAll.checked;
+        uploadButton.addEventListener('click', function (e) {
+            uploadFiles();
         });
-    } else {
-        let allChecked = true;
-        for (let checkbox of checkboxes) {
-            if (!checkbox.checked) {
-                allChecked = false;
-                break;
-            }
-        }
-        checkboxAll.checked = allChecked;
     }
-}
 
-document.querySelectorAll('input.table-row-checkbox-all,input.table-row-checkbox').forEach(function (checkbox) {
-    checkbox.addEventListener('input', function (e) {
+    document.body.addEventListener('dragover', function (e) {
         e.preventDefault();
-        refreshCheckboxState(e.target);
-        refreshButtons();
     });
-});
 
-function refreshTableRowOrder(criterion, sign) {
-    criterion ||= x => x.getAttribute('data-sort-order');
-    sign = Math.sign(sign || 1);
-    let table = document.querySelector('table.table');
-    let rows = [...table.querySelectorAll('.table-row')];
-    console.log(rows);
-    rows.sort((a, b) => (criterion(a) > criterion(b) ? sign : -sign));
-    for (let el of rows) {
-        el.remove();
-        table.appendChild(el);
-    }
-}
-
-function createUploadForm(action = '') {
-    let form = document.createElement('form');
-    form.setAttribute('action', action);
-    form.setAttribute('method', 'post');
-    form.setAttribute('enctype', 'multipart/form-data');
-    form.style.display = 'none';
-
-    form.appendChild(function () {
-        let action = document.createElement('input');
-        action.setAttribute('type', 'hidden');
-        action.setAttribute('name', 'action');
-        action.setAttribute('value', 'upload');
-        return action;
-    }());
-
-    let file = document.createElement('input');
-    file.setAttribute('type', 'file');
-    file.setAttribute('name', 'file');
-    file.setAttribute('multiple', '');
-    file.addEventListener('change', function fileChangeListener(e) {
-        e.target.removeEventListener('change', fileChangeListener);
-        if (e.target.files.length > 0) {
-            document.body.appendChild(form);
-            form.submit();
+    document.body.addEventListener('drop', function(e) {
+        console.log('test');
+        e.preventDefault();
+        if (!modifiable) {
+            alert('Modification is disabled.');
+        } else if (!writable) {
+            alert('Current directory is not writable.');
+        } else {
+            let obj = createUploadForm();
+            obj.file.files = e.dataTransfer.files;
+            obj.file.dispatchEvent(new Event('change'));
         }
-    });
-    form.appendChild(file);
+    }, true);
 
-    return { form, file };
-}
+    function deleteFiles(action = '') {
+        let form = document.createElement('form');
+        form.setAttribute('action', action);
+        form.setAttribute('method', 'post');
+        form.style.display = 'none';
 
-function uploadFiles(action = '') {
-    let obj = createUploadForm(action);
-    obj.file.click();
-}
+        form.appendChild(function () {
+            let action = document.createElement('input');
+            action.setAttribute('type', 'hidden');
+            action.setAttribute('name', 'action');
+            action.setAttribute('value', 'delete');
+            return action;
+        }());
 
-let uploadButton = document.querySelector('button#upload');
-if (uploadButton) {
-    uploadButton.addEventListener('click', function (e) {
-        uploadFiles();
-    });
-}
+        let selected = [...document.querySelectorAll('input.table-row-checkbox')].filter(el => el.checked);
 
-document.body.addEventListener('dragover', function (e) {
-    e.preventDefault();
-});
-
-document.body.addEventListener('drop', function(e) {
-    console.log('test');
-    e.preventDefault();
-    if (!modifiable) {
-        alert('Modification is disabled.');
-    } else if (!writable) {
-        alert('Current directory is not writable.');
-    } else {
-        let obj = createUploadForm();
-        obj.file.files = e.dataTransfer.files;
-        obj.file.dispatchEvent(new Event('change'));
-    }
-}, true);
-
-function deleteFiles(action = '') {
-    let form = document.createElement('form');
-    form.setAttribute('action', action);
-    form.setAttribute('method', 'post');
-    form.style.display = 'none';
-
-    form.appendChild(function () {
-        let action = document.createElement('input');
-        action.setAttribute('type', 'hidden');
-        action.setAttribute('name', 'action');
-        action.setAttribute('value', 'delete');
-        return action;
-    }());
-
-    let selected = [...document.querySelectorAll('input.table-row-checkbox')].filter(el => el.checked);
-
-    if (selected.length > 0) {
-        let result = confirm('Are you sure to delete these entries?');
-        if (!result) {
+        if (selected.length > 0) {
+            let result = confirm('Are you sure to delete these entries?');
+            if (!result) {
+                return;
+            }
+        } else if (selected.length == 0) {
             return;
         }
-    } else if (selected.length == 0) {
-        return;
-    }
 
-    for (let el of selected) {
-        let input = document.createElement('input');
-        input.setAttribute('type', 'hidden');
-        input.setAttribute('name', 'name');
-        input.setAttribute('value', el.getAttribute('data-entry-name'));
-        form.appendChild(input);
-    }
-
-    document.body.appendChild(form);
-    form.submit();
-}
-
-function createFolder(action='') {
-    let name = prompt('Please specify a folder name:');
-    if (!name) {
-        return;
-    }
-    let invalidChars = /[~!@#$%^&\\*\\(\\)\\+\\{\\}\\|:"<>\\?`\\[\\]\\\\=',\\/]/;
-    let matchedInvalidChars = invalidChars.exec(name);
-    if (matchedInvalidChars) {
-        matchedInvalidChars = [...matchedInvalidChars];
-        matchedInvalidChars = matchedInvalidChars.map(c => `(${c})`);
-        let formatted = matchedInvalidChars.join(', ');
-        alert(`Name contains invalid characters: ${formatted}`);
-        return;
-    }
-    let escapedName = CSS.escape(name);
-    if (document.querySelector(`[data-entry-name=${escapedName}]`)) {
-        alert(`Entry [${name}] already exists!`);
-        return;
-    }
-
-    let form = document.createElement('form');
-    form.setAttribute('action', action);
-    form.setAttribute('method', 'post');
-    form.style.display = 'none';
-    form.appendChild(function () {
-        let action = document.createElement('input');
-        action.setAttribute('type', 'hidden');
-        action.setAttribute('name', 'action');
-        action.setAttribute('value', 'new_folder');
-        return action;
-    }());
-    form.appendChild(function () {
-        let action = document.createElement('input');
-        action.setAttribute('type', 'hidden');
-        action.setAttribute('name', 'name');
-        action.setAttribute('value', name);
-        return action;
-    }());
-    document.body.appendChild(form);
-    form.submit();
-}
-
-let deleteButton = document.querySelector('button#delete');
-if (deleteButton) {
-    deleteButton.addEventListener('click', function (e) {
-        deleteFiles();
-    })
-}
-
-let newFolderButton = document.querySelector('button#newfolder');
-if (newFolderButton) {
-    newFolderButton.addEventListener('click', function (e) {
-        createFolder();
-    });
-}
-
-refreshButtons();
-
-const sortCriteria = {
-    name: row => row.getAttribute('data-sort-name'),
-    type: row => row.getAttribute('data-sort-type'),
-    ctime: row => row.getAttribute('data-sort-ctime'),
-    mtime: row => row.getAttribute('data-sort-mtime'),
-    atime: row => row.getAttribute('data-sort-atime'),
-    size: row => row.getAttribute('data-sort-size'),
-    order: row => row.getAttribute('data-sort-order'),
-};
-
-document.querySelectorAll('.table-header-link').forEach(function (link) {
-    link.addEventListener('click', function (e) {
-        e.preventDefault();
-
-        document.querySelectorAll('.table-header-link').forEach(function (otherLink) {
-            if (link != otherLink) {
-                otherLink.setAttribute('data-order', '');
-            }
-        });
-
-        let criterionKey = link.getAttribute('data-sort-by');
-        let order = link.getAttribute('data-order');
-        let criterion;
-        let sortSign;
-
-        if (!order) {
-            order = 'asc';
-            criterion = sortCriteria[criterionKey] || sortCriteria.order;
-            sortSign = 1;
-        } else if (order === 'asc') {
-            order = 'desc';
-            criterion = sortCriteria[criterionKey] || sortCriteria.order;
-            sortSign = -1;
-        } else if (order === 'desc') {
-            order = '';
-            criterion = sortCriteria.order;
-            sortSign = 1;
+        for (let el of selected) {
+            let input = document.createElement('input');
+            input.setAttribute('type', 'hidden');
+            input.setAttribute('name', 'name');
+            input.setAttribute('value', el.getAttribute('data-entry-name'));
+            form.appendChild(input);
         }
 
-        console.log(criterion);
+        document.body.appendChild(form);
+        form.submit();
+    }
 
-        link.setAttribute('data-order', order);
-        refreshTableRowOrder(criterion, sortSign);
+    function createFolder(action='') {
+        let name = prompt('Please specify a folder name:');
+        if (!name) {
+            return;
+        }
+        let invalidChars = /[~!@#$%^&\\*\\(\\)\\+\\{\\}\\|:"<>\\?`\\[\\]\\\\=',\\/]/;
+        let matchedInvalidChars = invalidChars.exec(name);
+        if (matchedInvalidChars) {
+            matchedInvalidChars = [...matchedInvalidChars];
+            matchedInvalidChars = matchedInvalidChars.map(c => `(${c})`);
+            let formatted = matchedInvalidChars.join(', ');
+            alert(`Name contains invalid characters: ${formatted}`);
+            return;
+        }
+        let escapedName = CSS.escape(name);
+        if (document.querySelector(`[data-entry-name=${escapedName}]`)) {
+            alert(`Entry [${name}] already exists!`);
+            return;
+        }
+
+        let form = document.createElement('form');
+        form.setAttribute('action', action);
+        form.setAttribute('method', 'post');
+        form.style.display = 'none';
+        form.appendChild(function () {
+            let action = document.createElement('input');
+            action.setAttribute('type', 'hidden');
+            action.setAttribute('name', 'action');
+            action.setAttribute('value', 'new_folder');
+            return action;
+        }());
+        form.appendChild(function () {
+            let action = document.createElement('input');
+            action.setAttribute('type', 'hidden');
+            action.setAttribute('name', 'name');
+            action.setAttribute('value', name);
+            return action;
+        }());
+        document.body.appendChild(form);
+        form.submit();
+    }
+
+    let deleteButton = document.querySelector('button#delete');
+    if (deleteButton) {
+        deleteButton.addEventListener('click', function (e) {
+            deleteFiles();
+        })
+    }
+
+    let newFolderButton = document.querySelector('button#newfolder');
+    if (newFolderButton) {
+        newFolderButton.addEventListener('click', function (e) {
+            createFolder();
+        });
+    }
+
+    refreshButtons();
+
+    const sortCriteria = {
+        name: row => row.getAttribute('data-sort-name'),
+        type: row => row.getAttribute('data-sort-type'),
+        ctime: row => row.getAttribute('data-sort-ctime'),
+        mtime: row => row.getAttribute('data-sort-mtime'),
+        atime: row => row.getAttribute('data-sort-atime'),
+        size: row => row.getAttribute('data-sort-size'),
+        order: row => row.getAttribute('data-sort-order'),
+    };
+
+    document.querySelectorAll('.table-header-link').forEach(function (link) {
+        link.addEventListener('click', function (e) {
+            e.preventDefault();
+
+            document.querySelectorAll('.table-header-link').forEach(function (otherLink) {
+                if (link != otherLink) {
+                    otherLink.setAttribute('data-order', '');
+                }
+            });
+
+            let criterionKey = link.getAttribute('data-sort-by');
+            let order = link.getAttribute('data-order');
+            let criterion;
+            let sortSign;
+
+            if (!order) {
+                order = 'asc';
+                criterion = sortCriteria[criterionKey] || sortCriteria.order;
+                sortSign = 1;
+            } else if (order === 'asc') {
+                order = 'desc';
+                criterion = sortCriteria[criterionKey] || sortCriteria.order;
+                sortSign = -1;
+            } else if (order === 'desc') {
+                order = '';
+                criterion = sortCriteria.order;
+                sortSign = 1;
+            }
+
+            console.log(criterion);
+
+            link.setAttribute('data-order', order);
+            refreshTableRowOrder(criterion, sortSign);
+        });
     });
-});
 
-if (location.hash === '#recent') {
-    console.log(123);
-    let a = document.querySelector('[data-sort-by=ctime]');
-    a.click();
-    a.click();
-    location.hash = '';
-}
-'''
+    if (location.hash === '#recent') {
+        console.log(123);
+        let a = document.querySelector('[data-sort-by=ctime]');
+        a.click();
+        a.click();
+        location.hash = '';
+    }
+    ''')
 
-ICON_SVG_DOCUMENT = (
-    '<svg fill="#000000" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="32px" height="32px">'
-    '<path d="M 4.5 2 C 3.675781 2 3 2.675781 3 3.5 L 3 12.5 C 3 13.324219 3.675781 14 4.5 14 L 11.5 14 C '
-    '12.324219 14 13 13.324219 13 12.5 L 13 5.292969 L 9.707031 2 Z M 4.5 3 L 9 3 L 9 6 L 12 6 L 12 12.5 C '
-    '12 12.78125 11.78125 13 11.5 13 L 4.5 13 C 4.21875 13 4 12.78125 4 12.5 L 4 3.5 C 4 3.21875 4.21875 3 '
-    '4.5 3 Z M 10 3.707031 L 11.292969 5 L 10 5 Z M 6 8 L 6 9 L 10 9 L 10 8 Z M 6 10 L 6 11 L 9 11 L 9 10 Z"/></svg>'
-)
-ICON_SVG_FOLDER = (
-    '<svg fill="#000000" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="32px" height="32px">'
-    '<path d="M 2.5 2 C 1.675781 2 1 2.675781 1 3.5 L 1 12.5 C 1 13.324219 1.675781 14 2.5 14 L 13.5 14 C 14.324219 '
-    '14 15 13.324219 15 12.5 L 15 5.5 C 15 4.675781 14.324219 4 13.5 4 L 6.796875 4 L 6.144531 2.789063 C 5.882813 '
-    '2.300781 5.375 2 4.824219 2 Z M 2.5 3 L 4.824219 3 C 5.007813 3 5.175781 3.101563 5.265625 3.261719 L 5.664063 '
-    '4 L 2 4 L 2 3.5 C 2 3.21875 2.21875 3 2.5 3 Z M 2 5 L 13.5 5 C 13.78125 5 14 5.21875 14 5.5 L 14 12.5 C 14 12.78125 '
-    '13.78125 13 13.5 13 L 2.5 13 C 2.21875 13 2 12.78125 2 12.5 Z"/></svg>'
-)
+    SVG_DATA_URI_PREFIX = 'data:image/svg+xml;base64,'
 
-NO_CLOSING_TAGS = {
-    'area',
-    'base',
-    'br',
-    'col',
-    'command',
-    'hr',
-    'img',
-    'input',
-    'keygen',
-    'link',
-    'meta',
-    'param',
-    'source',
-    'track',
-    'wbr',
-}
+    ICON_SVG_DOCUMENT = (
+        '<svg fill="#000000" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="32px" height="32px">'
+        '<path d="M 4.5 2 C 3.675781 2 3 2.675781 3 3.5 L 3 12.5 C 3 13.324219 3.675781 14 4.5 14 L 11.5 14 C '
+        '12.324219 14 13 13.324219 13 12.5 L 13 5.292969 L 9.707031 2 Z M 4.5 3 L 9 3 L 9 6 L 12 6 L 12 12.5 C '
+        '12 12.78125 11.78125 13 11.5 13 L 4.5 13 C 4.21875 13 4 12.78125 4 12.5 L 4 3.5 C 4 3.21875 4.21875 3 '
+        '4.5 3 Z M 10 3.707031 L 11.292969 5 L 10 5 Z M 6 8 L 6 9 L 10 9 L 10 8 Z M 6 10 L 6 11 L 9 11 L 9 10 Z"/></svg>'
+    )
+    ICON_SVG_FOLDER = (
+        '<svg fill="#000000" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="32px" height="32px">'
+        '<path d="M 2.5 2 C 1.675781 2 1 2.675781 1 3.5 L 1 12.5 C 1 13.324219 1.675781 14 2.5 14 L 13.5 14 C 14.324219 '
+        '14 15 13.324219 15 12.5 L 15 5.5 C 15 4.675781 14.324219 4 13.5 4 L 6.796875 4 L 6.144531 2.789063 C 5.882813 '
+        '2.300781 5.375 2 4.824219 2 Z M 2.5 3 L 4.824219 3 C 5.007813 3 5.175781 3.101563 5.265625 3.261719 L 5.664063 '
+        '4 L 2 4 L 2 3.5 C 2 3.21875 2.21875 3 2.5 3 Z M 2 5 L 13.5 5 C 13.78125 5 14 5.21875 14 5.5 L 14 12.5 C 14 12.78125 '
+        '13.78125 13 13.5 13 L 2.5 13 C 2.21875 13 2 12.78125 2 12.5 Z"/></svg>'
+    )
 
-NAME_TO_MIMETYPE = {
-    'makefile': 'text/plain',
-    'dockerfile': 'text/plain',
-    '.gitignore': 'text/plain',
-    '.bash_profile': 'text/plain',
-    '.bash_logout': 'text/plain',
-    '.bash_history': 'text/plain',
-    '.bashrc': 'text/plain',
-    '.zshrc': 'text/plain',
-    '.vimrc': 'text/plain',
-    '.history': 'text/plain',
-    '.zsh_history': 'text/plain',
-}
+    EL_REGEX_TAG = re.compile(r'^[^.#]*')
+    EL_REGEX_IDS = re.compile(r'[#]([^.#]*)')
+    EL_REGEX_CLASSES = re.compile(r'[.]([^.#]*)')
 
-EXT_TO_MIMETYPE = {
-    'md': 'text/plain',
-    'sh': 'text/plain',
-    'conf': 'text/plain',
-    'xml': 'text/plain',
-    'plist': 'text/plain',
-    'pem': 'text/plain',
-    'yml': 'text/plain',
-    'yaml': 'text/plain',
-    'rb': 'text/plain',
-    'rs': 'text/plain',
-    'toml': 'text/plain',
-    'ini': 'text/plain',
-    'log': 'text/plain',
-    'php': 'text/plain',
-}
+    NO_CLOSING_TAGS = {
+        'area',
+        'base',
+        'br',
+        'col',
+        'command',
+        'hr',
+        'img',
+        'input',
+        'keygen',
+        'link',
+        'meta',
+        'param',
+        'source',
+        'track',
+        'wbr',
+    }
 
+    NAME_TO_MIMETYPE = {
+        'makefile': 'text/plain',
+        'dockerfile': 'text/plain',
+        '.gitignore': 'text/plain',
+        '.bash_profile': 'text/plain',
+        '.bash_logout': 'text/plain',
+        '.bash_history': 'text/plain',
+        '.bashrc': 'text/plain',
+        '.zshrc': 'text/plain',
+        '.vimrc': 'text/plain',
+        '.history': 'text/plain',
+        '.zsh_history': 'text/plain',
+    }
 
-class TableRow(NamedTuple):
-    name: str
-    type: str
-    last_modified_timestamp: int
-    size_in_byte: Optional[int]
+    EXT_TO_MIMETYPE = {
+        'md': 'text/plain',
+        'sh': 'text/plain',
+        'conf': 'text/plain',
+        'xml': 'text/plain',
+        'plist': 'text/plain',
+        'pem': 'text/plain',
+        'yml': 'text/plain',
+        'yaml': 'text/plain',
+        'rb': 'text/plain',
+        'rs': 'text/plain',
+        'toml': 'text/plain',
+        'ini': 'text/plain',
+        'log': 'text/plain',
+        'php': 'text/plain',
+    }
 
 
 class EntryType(enum.Enum):
@@ -492,223 +485,409 @@ class EntryType(enum.Enum):
     DIRECTORY = 2
 
 
-def T(name, *args: List[Union[str, list, tuple, dict]], **kwargs) -> str:
-    render_if = kwargs.pop('render_if', True)
-    if not render_if:
-        return ''
+class Entry(NamedTuple):
+    name: str
+    path: str
+    type: EntryType
+    readable: bool
+    writable: bool
+    stat_ctime: float
+    stat_mtime: float
+    stat_atime: float
+    stat_size: int
 
+
+class ListDirHTML:
+    @classmethod
+    def __generate_breakcrumbs(cls, webpath: str):
+        href_tokens = []
+        breadcrumb_elments = [el('a', {'href': '/'}, 'Home')]
+        for token in filter(len, webpath.split('/')):
+            href_tokens.append(token)
+            href = ''.join(('/' + token) for token in href_tokens)
+            element = el('a', dict(href=href), token)
+            breadcrumb_elments.append(element)
+        return breadcrumb_elments
+
+    @classmethod
+    def __generate_icon_by_type(cls, type: EntryType) -> str:
+        svg = None
+        if type == EntryType.FILE:
+            svg = Constant.ICON_SVG_DOCUMENT
+        elif type == EntryType.DIRECTORY:
+            svg = Constant.ICON_SVG_FOLDER
+        attrs = {'style': 'width: 16px'}
+        if svg is None:
+            attrs['alt'] = 'unknown file type'
+        else:
+            src = Constant.SVG_DATA_URI_PREFIX
+            src += MiscUtil.base64_encode(svg)
+            attrs['src'] = src
+        return el('img', attrs)
+
+    @classmethod
+    def generate(cls,
+                 webpath: str,
+                 entries: List[Entry],
+                 allow_modify: bool,
+                 folder_writable: bool) -> str:
+
+        table_rows = []
+        for i, entry in enumerate(entries):
+            link_attrs = {}
+            if entry.readable:
+                link_attrs['href'] = os.path.join(webpath, entry.name)
+            if entry.type == EntryType.FILE:
+                link_attrs['target'] = '_blank'
+            display_name = FormatUtil.entry_name(entry)
+            display_size = FormatUtil.entry_size(entry)
+            display_perm = FormatUtil.entry_permission(entry)
+            display_ctime = FormatUtil.date(entry.stat_ctime)
+            display_mtime = FormatUtil.date(entry.stat_mtime)
+            display_atime = FormatUtil.date(entry.stat_atime)
+            table_rows.append(
+                el('tr.table-row', {
+                    'id': display_name,
+                    'data-sort-type': entry.type,
+                    'data-sort-name': display_name,
+                    'data-sort-perm': display_perm,
+                    'data-sort-ctime': display_ctime,
+                    'data-sort-mtime': display_mtime,
+                    'data-sort-atime': display_atime,
+                    'data-sort-size': '{:016d}'.format(entry.stat_size),
+                    'data-sort-order': i,
+                }, (
+                    el('td.table-cell-checkbox', [
+                        el('input.table-row-checkbox', {
+                            'type': 'checkbox',
+                            'data-entry-name': entry.name,
+                        })
+                    ]),
+                    el('td.table-cell-icon', cls.__generate_icon_by_type(entry.type)),
+                    el('td.table-cell-normal', el('a.name', link_attrs, display_name)),
+                    el('td.table-cell-normal', display_size),
+                    el('td.table-cell-normal', display_perm),
+                    el('td.table-cell-normal', display_ctime),
+                    el('td.table-cell-normal', display_mtime),
+                    el('td.table-cell-normal', display_atime),
+                ))
+            )
+        if len(table_rows) == 0:
+            table_rows.append(
+                el('tr', [
+                    el('td.table-cell-normal', {'colspan': 7}, el('i', 'empty')),
+                ])
+            )
+
+        if allow_modify:
+            modification_buttons = [
+                el('button#upload', {'type': 'button'}, 'Upload'), ' ',
+                el('button#delete', {'type': 'button'}, 'Delete'), ' ',
+                el('button#newfolder', {'type': 'button'}, 'New Folder'),
+            ]
+        else:
+            modification_buttons = [el('span', 'modification is disabled')]
+
+        parent_path = os.path.dirname(webpath)
+        onclick_parent_btn = f'location.href = {j(parent_path)}'
+
+        return el('html', [
+            el('head', [
+                el('title', webpath),
+                el('meta', {'charset': 'utf-8'}),
+                el('meta', {'name': 'viewport',
+                            'content': 'width=device-width, initial-scale=1'}),
+                el('style', Constant.STYLE)
+            ]),
+            el('body', [
+                el('.container', [
+                    el('.section', [
+                        el('h2', '/'.join(cls.__generate_breakcrumbs(webpath))),
+                    ]),
+                    el('.section', [
+                        el('button', {'type': 'button',
+                                      'onclick': onclick_parent_btn}, '..'), ' ',
+                        el('input.name-filter', {'type': 'text',
+                                                 'placeholder': 'RegExp name filter',
+                                                 'autofocus': 'true',
+                                                 'spellcheck': 'false'}), ' ',
+                        *modification_buttons,
+                    ]),
+                    el('.section', [
+                        el('table.table', [
+                            el('tr.table-header', [
+                                el('td.table-cell-checkbox',
+                                    el('input.table-row-checkbox-all', {'type': 'checkbox'})),
+                                el('td.table-cell-normal'),
+                                el('td.table-cell-normal', el('a.table-header-link',
+                                                              {'href': '#', 'data-sort-by': 'name'},
+                                                              'name')),
+                                el('td.table-cell-normal', el('a.table-header-link',
+                                                              {'href': '#', 'data-sort-by': 'size'},
+                                                              'size')),
+                                el('td.table-cell-normal', el('a.table-header-link',
+                                                              {'href': '#', 'data-sort-by': 'perm'},
+                                                              'permission')),
+                                el('td.table-cell-normal', el('a.table-header-link',
+                                                              {'href': '#', 'data-sort-by': 'ctime'},
+                                                              'created at')),
+                                el('td.table-cell-normal', el('a.table-header-link',
+                                                              {'href': '#', 'data-sort-by': 'mtime'},
+                                                              'modified at')),
+                                el('td.table-cell-normal', el('a.table-header-link',
+                                                              {'href': '#', 'data-sort-by': 'atime'},
+                                                              'accessed at')),
+                            ]),
+                            ''.join(table_rows),
+                        ]),
+                    ]),
+                ]),
+                el('script', f'const modifiable = {j(allow_modify)};'),
+                el('script', f'const writable = {j(folder_writable)};'),
+                el('script', Constant.SCRIPT),
+            ]),
+        ])
+
+
+j = json.dumps
+
+
+def el(name, *args: List[Union[str, list, tuple, dict]], **kwargs) -> str:
+    if not kwargs.pop('when', True):
+        return ''
     assert len(kwargs) == 0
 
-    attrs, inner = {}, []
+    attributes = {}
+    children_elements = []
 
     for arg in args:
         if isinstance(arg, (list, tuple)):
-            inner.extend(arg)
+            children_elements.extend(arg)
         elif isinstance(arg, dict):
-            attrs.update(arg)
+            attributes.update(arg)
         else:
-            inner.append(str(arg))
+            children_elements.append(str(arg))
 
-    name_tag = re.search(r'^[^.#]*', name).group() or 'div'
-    name_ids = re.findall(r'[#]([^.#]*)', name)
-    name_classes = re.findall(r'[.]([^.#]*)', name)
+    name_tag = re.search(Constant.EL_REGEX_TAG, name).group() or 'div'
+    name_ids = re.findall(Constant.EL_REGEX_IDS, name)
+    name_classes = re.findall(Constant.EL_REGEX_CLASSES, name)
 
-    classes = attrs.get('class')
+    classes = attributes.get('class')
     if isinstance(classes, (list, tuple)):
-        attrs['class'] = ' '.join(classes)
+        attributes['class'] = ' '.join(classes)
 
     if len(name_ids) > 0:
         assert len(name_ids) == 1
-        assert attrs.get('id') is None
-        attrs['id'] = name_ids[0]
+        assert attributes.get('id') is None
+        attributes['id'] = name_ids[0]
 
     if len(name_classes) > 0:
-        class_value = attrs.get('class')
+        class_value = attributes.get('class')
         if class_value is not None:
             assert isinstance(class_value, str)
-            attrs['class'] = ' '.join((class_value, *name_classes))
+            attributes['class'] = ' '.join((class_value, *name_classes))
         else:
-            attrs['class'] = ' '.join(name_classes)
+            attributes['class'] = ' '.join(name_classes)
 
-    attrs = ''.join(f' {escape(key)}="{escape(value)}"' for key, value in attrs.items())
-    inner = ''.join(map(str, inner))
+    attributes = ''.join(f' {escape(key)}="{escape(value)}"' for key, value in attributes.items())
+    children_html = ''.join(map(str, children_elements))
 
-    if name_tag.lower() in NO_CLOSING_TAGS:
-        assert len(inner) == 0
-        return f'<{escape(name_tag)}{attrs}/>'
+    if name_tag.lower() in Constant.NO_CLOSING_TAGS:
+        assert len(children_html) == 0
+        return f'<{escape(name_tag)}{attributes}/>'
     else:
-        return f'<{escape(name_tag)}{attrs}>{inner}</{escape(name_tag)}>'
+        return f'<{escape(name_tag)}{attributes}>{children_html}</{escape(name_tag)}>'
 
 
-def format_date(timestamp: Union[int, float]):
-    assert isinstance(timestamp, (int, float))
-    return str(datetime.fromtimestamp(int(timestamp)))
+class FormatUtil:
+    @classmethod
+    def date(cls, timestamp: Union[int, float]):
+        assert isinstance(timestamp, (int, float))
+        return str(datetime.fromtimestamp(int(timestamp)))
+
+    @classmethod
+    def size(cls, size: int) -> str:
+        for unit in ['', 'K', 'M', 'G', 'T', 'P', 'E', 'Z']:
+            if abs(size) < 1024.0:
+                return f'{size:3.1f}{unit}'
+            size /= 1024.0
+        return f'{size:.1f}Y'
+
+    @classmethod
+    def get_path_type(cls, path) -> EntryType:
+        if os.path.exists(path):
+            if os.path.isfile(path):
+                return EntryType.FILE
+            elif os.path.isdir(path):
+                return EntryType.DIRECTORY
+        return EntryType.UNKNOWN
+
+    @classmethod
+    def entry_name(cls, entry: Entry) -> str:
+        if entry.type == EntryType.FILE:
+            return entry.name
+        elif entry.type == EntryType.DIRECTORY:
+            return entry.name + '/'
+        else:
+            return entry.name + '?'
+
+    @classmethod
+    def entry_type(cls, entry: Entry) -> str:
+        if entry.type == EntryType.DIRECTORY:
+            return 'd'
+        elif entry.type == EntryType.FILE:
+            return 'f'
+        else:
+            return '?'
+
+    @classmethod
+    def entry_permission(cls, entry: Entry) -> str:
+        string = ''
+        if entry.readable:
+            string += 'R'
+        if entry.writable:
+            string += 'W'
+        return string or '-'
+
+    @classmethod
+    def entry_size(cls, entry: Entry) -> str:
+        if entry.type == EntryType.FILE:
+            return FormatUtil.size(entry.stat_size)
+        else:
+            return '-'
 
 
-def format_size(size: int) -> str:
-    for unit in ['', 'K', 'M', 'G', 'T', 'P', 'E', 'Z']:
-        if abs(size) < 1024.0:
-            return f'{size:3.1f}{unit}'
-        size /= 1024.0
-    return f'{size:.1f}Y'
+class PathUtil:
+    @classmethod
+    def sanitize(cls, path: str) -> str:
+        path = path.replace('..', '')
+        path = path.replace('//', '')
+        path = path.lstrip('/')
+        return path
+
+    @classmethod
+    def get_type(cls, path: str) -> EntryType:
+        if os.path.exists(path):
+            if os.path.isfile(path):
+                return EntryType.FILE
+            elif os.path.isdir(path):
+                return EntryType.DIRECTORY
+        return EntryType.UNKNOWN
+
+    @classmethod
+    def get_readibility(cls, path: str) -> bool:
+        type = cls.get_type(path)
+        if type == EntryType.FILE:
+            return os.access(path, os.R_OK)
+        elif type == EntryType.DIRECTORY:
+            return os.access(path, os.R_OK | os.X_OK)
+        return False
+
+    @classmethod
+    def get_writability(cls, path: str) -> bool:
+        type = cls.get_type(path)
+        if type == EntryType.FILE:
+            return os.access(path, os.W_OK)
+        elif type == EntryType.DIRECTORY:
+            return os.access(path, os.W_OK | os.R_OK | os.X_OK)
+        return False
 
 
-def sanitize_path(path):
-    path = path.replace('..', '')
-    path = path.replace('//', '')
-    path = path.lstrip('/')
-    return path
+class MiscUtil:
+    @classmethod
+    def base64_encode(cls, s: str) -> str:
+        b = s.encode()
+        b = base64.b64encode(b)
+        s = b.decode()
+        return s
 
+    @classmethod
+    def base64_url_encode(cls, s: str) -> str:
+        b = s.encode()
+        b = base64.urlsafe_b64encode(b)
+        s = b.decode()
+        return s.rstrip('=')
 
-def get_path_type(path) -> EntryType:
-    if os.path.exists(path):
-        if os.path.isfile(path):
-            return EntryType.FILE
-        elif os.path.isdir(path):
-            return EntryType.DIRECTORY
-    return EntryType.UNKNOWN
-
-
-def format_entry_name(entry):
-    if entry['type'] == EntryType.FILE:
-        return entry['name']
-    elif entry['type'] == EntryType.DIRECTORY:
-        return entry['name'] + '/'
-    else:
-        return entry['name'] + '?'
-
-
-def format_entry_type(entry):
-    return {
-        EntryType.DIRECTORY: 'd',
-        EntryType.FILE: 'f',
-    }.get(entry['type'], '?')
-
-
-def format_entry_permission(entry):
-    string = ''
-    if entry['readable']:
-        string += 'R'
-    if entry['writable']:
-        string += 'W'
-    if string == '':
-        string = '-'
-    return string
-
-
-def format_entry_size(entry):
-    if entry['type'] == EntryType.FILE:
-        return format_size(entry['stat'].st_size)
-    else:
-        return '-'
-
-
-def get_path_readibility(path):
-    type = get_path_type(path)
-    if type == EntryType.FILE:
-        return os.access(path, os.R_OK)
-    elif type == EntryType.DIRECTORY:
-        return os.access(path, os.R_OK | os.X_OK)
-    return False
-
-
-def get_path_writability(path):
-    type = get_path_type(path)
-    if type == EntryType.FILE:
-        return os.access(path, os.W_OK)
-    elif type == EntryType.DIRECTORY:
-        return os.access(path, os.W_OK | os.R_OK | os.X_OK)
-    return False
-
-
-def base64_encode(s):
-    return base64.b64encode(s.encode()).decode()
-
-
-def svg_img(svg_data):
-    return T('img', {
-        'src': 'data:image/svg+xml;base64,{}'.format(base64_encode(svg_data)),
-        'style': 'width: 16px',
-    })
-
-
-def guess_mimetype(path):
-    name = os.path.basename(path).lower()
-    if not name:
-        return
-    mimetype = NAME_TO_MIMETYPE.get(name)
-    if mimetype is not None:
-        return mimetype
-    exts = name.split('.')
-    if len(exts) <= 1:
-        return
-    mimetype = EXT_TO_MIMETYPE.get(exts[-1])
-    if mimetype is not None:
-        return mimetype
-
-
-def request_is_from_browser():
-    ua = request.user_agent.string.lower()
-    match = re.search(r'(chrome|chromium|crios|firefox|fxios|safari|opr\/|edg)', ua)
-    return match is not None
-
-
-def abort_by_user_agent(status, message):
-    if request_is_from_browser():
-        return abort(status, message)
-    else:
-        return abort(make_response(jsonify(error=message), status))
+    @classmethod
+    def guess_mimetype(cls, path: str) -> str:
+        name = os.path.basename(path).lower()
+        if not name:
+            return
+        mimetype = Constant.NAME_TO_MIMETYPE.get(name)
+        if mimetype is not None:
+            return mimetype
+        exts = name.split('.')
+        if len(exts) <= 1:
+            return
+        mimetype = Constant.EXT_TO_MIMETYPE.get(exts[-1])
+        if mimetype is not None:
+            return mimetype
 
 
 class Handler:
-    def __init__(self, root, no_list, no_modify):
+    def __init__(self, root: str, no_list: bool, no_modify: bool):
         self.abs_root = os.path.abspath(root)
         self.no_list = no_list
         self.no_modify = no_modify
 
+    def __is_browser_request(self) -> bool:
+        ua = request.user_agent.string.lower()
+        match = re.search(
+            r'(chrome|chromium|crios|firefox|fxios|safari|opr\/|edg)', ua)
+        return match is not None
+
+    def __abort(self, status: int, message: str):
+        if self.__is_browser_request():
+            return abort(status, message)
+        else:
+            return abort(make_response(jsonify(error=message), status))
+
     def handle(self, path=''):
         if request.method == 'GET':
-            return self.view(path)
+            return self.__handle_view(path)
         elif request.method == 'POST':
             action = request.form.get('action')
             if action == 'upload':
-                return self.create(path)
+                return self.__handle_upload(path)
             elif action == 'delete':
-                return self.delete(path)
+                return self.__handle_delete(path)
             elif action == 'new_folder':
-                return self.new_folder(path)
-        abort_by_user_agent(400, 'unknown action')
+                return self.__handle_mkdir(path)
+        self.__abort(400, 'unknown action')
 
-    def view(self, path):
+    def __handle_view(self, path):
         local_path = self.__get_local_path(path)
         if local_path is None:
-            abort_by_user_agent(400, 'invalid path')
+            self.__abort(400, 'invalid path')
         if not os.path.exists(local_path):
-            abort_by_user_agent(404, 'file or directory does not exist')
-        elif not get_path_readibility(local_path):
-            abort_by_user_agent(403, 'no permission to access this location')
+            self.__abort(404, 'file or directory does not exist')
+        elif not PathUtil.get_readibility(local_path):
+            self.__abort(403, 'no permission to access this location')
         elif os.path.isfile(local_path):
-            return send_file(local_path, mimetype=guess_mimetype(local_path))
+            return send_file(local_path, mimetype=MiscUtil.guess_mimetype(local_path))
         elif os.path.isdir(local_path):
             if self.no_list:
-                abort_by_user_agent(403, 'directory listing is forbidden')
+                self.__abort(403, 'directory listing is forbidden')
             return self.__list_dir(local_path)
         else:
-            abort_by_user_agent(403, 'firbidden')
+            self.__abort(403, 'firbidden')
 
-    def delete(self, path):
+    def __handle_delete(self, path):
         if self.no_modify:
-            abort_by_user_agent(403, 'modification is forbidden')
+            self.__abort(403, 'modification is forbidden')
         entry_names = request.form.getlist('name')
-        local_paths = [self.__get_local_path(os.path.join(path, name)) for name in entry_names]
+        local_paths = [self.__get_local_path(
+            os.path.join(path, name)) for name in entry_names]
         for entry_name, local_path in zip(entry_names, local_paths):
             if local_path is None:
-                abort_by_user_agent(400, f'invalid path: {entry_name}')
+                self.__abort(400, f'invalid path: {entry_name}')
             dirpath = os.path.dirname(local_path)
-            if not get_path_writability(dirpath):
-                abort_by_user_agent(403, f'no permission to modify the parent directory of {entry_name}')
-            if not get_path_writability(local_path):
-                abort_by_user_agent(403, f'no permission to delete {entry_name}')
+            if not PathUtil.get_writability(dirpath):
+                self.__abort(
+                    403, f'no permission to modify the parent directory of {entry_name}')
+            if not PathUtil.get_writability(local_path):
+                self.__abort(
+                    403, f'no permission to delete {entry_name}')
         result = {}
         from os.path import islink, isfile, isdir, join, exists
         for local_path in local_paths:
@@ -740,16 +919,19 @@ class Handler:
             result[entry_name] = not os.path.exists(local_path)
         if not all(result.values()):
             return result
-        return redirect(f'/{path}', 302) if request_is_from_browser() else {'deleted': result}
+        if self.__is_browser_request():
+            return redirect(f'/{path}', 302)
+        else:
+            return {'deleted': result}
 
-    def create(self, path):
+    def __handle_upload(self, path):
         if self.no_modify:
-            abort_by_user_agent(403, 'modification is forbidden')
+            self.__abort(403, 'modification is forbidden')
         local_path = self.__get_local_path(path)
         if not os.path.isdir(local_path):
-            abort_by_user_agent(403, 'location is not a directory')
+            self.__abort(403, 'location is not a directory')
         if 'file' not in request.files:
-            abort_by_user_agent(400, 'file is not provided')
+            self.__abort(400, 'file is not provided')
         result = {}
         for file in request.files.getlist('file'):
             filename = secure_filename(file.filename)
@@ -757,25 +939,32 @@ class Handler:
             try:
                 file.save(filepath)
             except PermissionError:
-                abort_by_user_agent(403, 'no permission to upload to this location')
+                self.__abort(
+                    403, 'no permission to upload to this location')
             result[filename] = True
-        return redirect(f'/{path}#recent', 302) if request_is_from_browser() else {'uploaded': result}
+        if self.__is_browser_request():
+            return redirect(f'/{path}#recent', 302)
+        else:
+            return {'uploaded': result}
 
-    def new_folder(self, path):
+    def __handle_mkdir(self, path):
         if self.no_modify:
-            abort_by_user_agent(403, 'modification is forbidden')
+            self.__abort(403, 'modification is forbidden')
         name = request.form.get('name')
         if not name:
-            abort_by_user_agent(400, 'name in not provided')
+            self.__abort(400, 'name in not provided')
         folder_path = os.path.join(path, name)
         folder_path = self.__get_local_path(folder_path)
         if os.path.exists(folder_path):
-            abort_by_user_agent(400, 'folder already exists')
+            self.__abort(400, 'folder already exists')
         with suppress(OSError):
             os.makedirs(folder_path, exist_ok=True)
         if not os.path.isdir(folder_path):
-            abort_by_user_agent(500, 'failed to create folder')
-        return redirect(f'/{path}#recent', 302) if request_is_from_browser() else {'new_folder': name}
+            self.__abort(500, 'failed to create folder')
+        if self.__is_browser_request():
+            return redirect(f'/{path}#recent', 302)
+        else:
+            return {'new_folder': name}
 
     def __get_local_path(self, path):
         abs_path = os.path.abspath(os.path.join(self.abs_root, path))
@@ -783,149 +972,49 @@ class Handler:
             return abs_path
 
     def __list_dir(self, abs_dir_path):
-
         relpath = os.path.relpath(abs_dir_path, self.abs_root)
-        webpath = os.path.join('/', relpath)
-        webpath = os.path.abspath(webpath)
+        webpath = os.path.abspath(os.path.join('/', relpath))
 
-        dir_writable = os.access(abs_dir_path, os.W_OK)
-
-        entries = []
-
+        entries: List[Entry] = []
         for item_name in os.listdir(abs_dir_path):
             item_path = os.path.join(abs_dir_path, item_name)
             with suppress(Exception):
-                entries.append({
-                    'name': item_name,
-                    'path': item_path,
-                    'type': get_path_type(item_path),
-                    'readable': get_path_readibility(item_path),
-                    'writable': get_path_writability(item_path),
-                    'stat': os.stat(item_path),
-                })
-
-        entries.sort(key=(lambda entry: (-entry['type'].value, entry['name'])))
-
-        if request_is_from_browser():
-            href_tokens = []
-            breadcrumb_links = [T('a', {'href': '/'}, 'Home')]
-            for token in filter(len, webpath.split('/')):
-                href_tokens.append(token)
-                breadcrumb_links.append(T('a', {'href': '/' + '/'.join(href_tokens)}, token))
-
-            icon_map = {
-                EntryType.FILE: svg_img(ICON_SVG_DOCUMENT),
-                EntryType.DIRECTORY: svg_img(ICON_SVG_FOLDER),
-            }
-
-            table_rows = []
-            for i, entry in enumerate(entries):
-                link_attrs = {}
-                if entry['readable']:
-                    link_attrs['href'] = os.path.join(webpath, entry['name'])
-                if entry['type'] == EntryType.FILE:
-                    link_attrs['target'] = '_blank'
-                display_name = format_entry_name(entry)
-                display_size = format_entry_size(entry)
-                display_perm = format_entry_permission(entry)
-                display_ctime = format_date(entry['stat'].st_ctime)
-                display_mtime = format_date(entry['stat'].st_mtime)
-                display_atime = format_date(entry['stat'].st_atime)
-                table_rows.append(
-                    T('tr.table-row', {
-                        'id': display_name,
-                        'data-sort-type': entry['type'],
-                        'data-sort-name': display_name,
-                        'data-sort-perm': display_perm,
-                        'data-sort-ctime': display_ctime,
-                        'data-sort-mtime': display_mtime,
-                        'data-sort-atime': display_atime,
-                        'data-sort-size': '{:016d}'.format(entry['stat'].st_size),
-                        'data-sort-order': i,
-                    }, [
-                        T('td.table-cell-checkbox', [
-                            T('input.table-row-checkbox', {
-                                'type': 'checkbox',
-                                'data-entry-name': entry['name']
-                            })
-                        ]),
-                        T('td.table-cell-icon', icon_map.get(entry['type'], '')),
-                        T('td.table-cell-normal', T('a.name', link_attrs, display_name)),
-                        T('td.table-cell-normal', display_size),
-                        T('td.table-cell-normal', display_perm),
-                        T('td.table-cell-normal', display_ctime),
-                        T('td.table-cell-normal', display_mtime),
-                        T('td.table-cell-normal', display_atime),
-                    ])
+                stat = os.stat(item_path)
+                entry = Entry(
+                    name=item_name,
+                    path=item_path,
+                    type=PathUtil.get_type(item_path),
+                    readable=PathUtil.get_readibility(item_path),
+                    writable=PathUtil.get_writability(item_path),
+                    stat_ctime=stat.st_ctime,
+                    stat_mtime=stat.st_mtime,
+                    stat_atime=stat.st_atime,
+                    stat_size=stat.st_size,
                 )
-            if len(table_rows) == 0:
-                table_rows.append(
-                    T('tr', [
-                        T('td.table-cell-normal', {'colspan': 7}, T('i', 'empty')),
-                    ])
-                )
+                entries.append(entry)
+        entries.sort(key=(lambda entry: (-entry.type.value, entry.name)))
 
-            modification_buttons = [] if self.no_modify else [
-                T('button#upload', {'type': 'button'}, 'Upload'), ' ',
-                T('button#delete', {'type': 'button'}, 'Delete'), ' ',
-                T('button#newfolder', {'type': 'button'}, 'New Folder'),
-            ]
-
-            return T('html', [
-                T('head', [
-                    T('title', webpath),
-                    T('meta', {'charset': 'utf-8'}),
-                    T('meta', {'name': 'viewport', 'content': 'width=device-width, initial-scale=1'}),
-                    T('style', STYLE)
-                ]),
-                T('body', [
-                    T('.container', [
-                        T('.section', [
-                            T('h2', '/'.join(breadcrumb_links)),
-                            T('p', 'Modification is disabled.' if self.no_modify else f'Writable: {dir_writable}'),
-                        ]),
-                        T('.section', [
-                            T('button', {'type': 'button', 'onclick': 'location.href = {}'.format(json.dumps(os.path.dirname(webpath)))}, '..'), ' ',
-                            T('input.name-filter', {'type': 'text', 'placeholder': 'RegExp name filter', 'autofocus': 'true', 'spellcheck': 'false'}), ' ',
-                            *modification_buttons,
-                        ]),
-                        T('.section', [
-                            T('table.table', [
-                                T('tr.table-header', [
-                                    T('td.table-cell-checkbox', T('input.table-row-checkbox-all', {'type': 'checkbox'})),
-                                    T('td.table-cell-normal'),
-                                    T('td.table-cell-normal', T('a.table-header-link', {'href': '#', 'data-sort-by': 'name'}, 'name')),
-                                    T('td.table-cell-normal', T('a.table-header-link', {'href': '#', 'data-sort-by': 'size'}, 'size')),
-                                    T('td.table-cell-normal', T('a.table-header-link', {'href': '#', 'data-sort-by': 'perm'}, 'permission')),
-                                    T('td.table-cell-normal', T('a.table-header-link', {'href': '#', 'data-sort-by': 'ctime'}, 'created at')),
-                                    T('td.table-cell-normal', T('a.table-header-link', {'href': '#', 'data-sort-by': 'mtime'}, 'modified at')),
-                                    T('td.table-cell-normal', T('a.table-header-link', {'href': '#', 'data-sort-by': 'atime'}, 'accessed at')),
-                                ]),
-                                ''.join(table_rows),
-                            ]),
-                        ]),
-                    ]),
-                    T('script', f'const modifiable = {json.dumps(not self.no_modify)};'),
-                    T('script', f'const writable = {json.dumps(dir_writable)};'),
-                    T('script', SCRIPT),
-                ]),
-            ])
+        if self.__is_browser_request():
+            allow_modify = not self.no_modify
+            folder_writable = os.access(abs_dir_path, os.W_OK)
+            html = ListDirHTML.generate(webpath, entries, allow_modify, folder_writable)
+            return make_response(html)
 
         elif request.args.get('json') is not None:
             return jsonify([
                 {
-                    'name': entry['name'],
-                    'type': format_entry_type(entry),
-                    'perm': format_entry_permission(entry),
-                    'size': entry['stat'].st_size,
+                    'name': entry.name,
+                    'type': FormatUtil.entry_type(entry),
+                    'perm': FormatUtil.entry_permission(entry),
+                    'size': entry.stat_size,
                 } for entry in entries
             ])
         else:
             resp = make_response(''.join((
                 '{}\t({} {})\n'.format(
-                    format_entry_name(entry),
-                    format_entry_permission(entry),
-                    format_entry_size(entry),
+                    FormatUtil.entry_name(entry),
+                    FormatUtil.entry_permission(entry),
+                    FormatUtil.entry_size(entry),
                 )
                 for entry in entries
             )))
@@ -933,11 +1022,10 @@ class Handler:
             return resp
 
 
-def view_handler(path='/'):
-    return path
-
-
-def create_flask_app(root, basic_auth, no_list, no_modify):
+def create_flask_app(root: str,
+                     basic_auth: Optional[str],
+                     no_list: bool,
+                     no_modify: bool) -> Flask:
     app = Flask(__name__, static_folder=None)
     handler = Handler(root, no_list, no_modify)
     handle = handler.handle
@@ -945,49 +1033,25 @@ def create_flask_app(root, basic_auth, no_list, no_modify):
         auth = HTTPBasicAuth()
         auth.verify_password(lambda u, p: [None, u][f'{u}:{p}' == basic_auth])
         handle = auth.login_required(handle)
-    app.add_url_rule('/', view_func=handle, methods=['GET', 'POST'])
-    app.add_url_rule('/<path:path>', view_func=handle, methods=['GET', 'POST'])
+    for rule in ('/', '/<path:path>'):
+        app.add_url_rule(rule, 'handle', handle, methods=['GET', 'POST'])
     return app
 
 
-def path_type(path):
-    assert os.path.exists(path), f'path {path!r} does not exist'
-    return path
-
-
-def get_available_hosts(input_host):
-    if input_host == '0.0.0.0':
-        output_hosts = [get_interface_ip(socket.AF_INET), '127.0.0.1']
-    elif input_host in ('::', '[::]'):
-        output_hosts = [get_interface_ip(socket.AF_INET6), '[::1]']
-    elif ':' in input_host and not input_host.startswith('['):
-        output_hosts = [f'[{input_host}]']
-    else:
-        output_hosts = [input_host]
-    return output_hosts
-
-
-def get_display_url(scheme, host, port):
-    return [f'{scheme}://{public_host}:{port}'
-            for public_host in get_available_hosts(host)]
-
-
-def b64urle(s: str) -> str:
-    return base64.urlsafe_b64encode(s.encode()).decode().rstrip('=')
-
-
-def gencert(host: str, common_name=None):
-    from cryptography.hazmat.primitives import serialization
-    from cryptography.hazmat.primitives.asymmetric import ec
-    from cryptography import x509, __version__ as version
-    from cryptography.x509.oid import NameOID
-    from cryptography.hazmat.primitives import hashes
+def generate_certificates(host: str, common_name: Optional[str] = None) -> Tuple[str, str]:
     from os.path import isfile, join, expanduser
+    try:
+        from cryptography.hazmat.primitives import serialization, hashes
+        from cryptography.hazmat.primitives.asymmetric import ec
+        from cryptography import x509, __version__ as version
+        from cryptography.x509.oid import NameOID
+    except ImportError as e:
+        exit_with_package_import_error(e)
 
-    if int(version.split('.')[0]) < 36:
-        print(f'[SSL] warning: Package cryptography v{version} is lower than v36.')
-        print('               This may cause errors. Please consider upgrading it')
-        print('               to the latest version.')
+    current_major = int(version.split('.')[0])
+    lowest_major = 36
+    if current_major < lowest_major:
+        print(f'tls: warning: package cryptography v{current_major} is lower than v{lowest_major}')
 
     def generate_key():
         return ec.generate_private_key(ec.SECP256R1)
@@ -1000,7 +1064,8 @@ def gencert(host: str, common_name=None):
         if passphrase is None:
             encryption = serialization.NoEncryption()
         else:
-            encryption = serialization.BestAvailableEncryption(passphrase.encode())
+            encryption = serialization.BestAvailableEncryption(
+                passphrase.encode())
         with open(path, 'wb') as f:
             f.write(key.private_bytes(
                 encoding=serialization.Encoding.PEM,
@@ -1049,93 +1114,88 @@ def gencert(host: str, common_name=None):
         with open(path, 'wb') as f:
             f.write(certificate.public_bytes(serialization.Encoding.PEM))
 
-    name = host if common_name is None else common_name
-    cert_name = 'WebDir.{}'.format(b64urle(name))
-    cert_dir = expanduser('~/.webdir')
+    cert_cn = 'localhost'
+    if common_name is None:
+        print(f'tls: warning: you are using default CN {cert_cn!r}')
+        print('tls: warning: you can change CN by adding --https-host HOSTNAME')
+    else:
+        cert_cn = common_name
+
+    webdir_cfg_dir = expanduser('~/.webdir')
+    root_ca_dir = join(webdir_cfg_dir, 'root_ca')
+    root_ca_cert_path = join(root_ca_dir, 'cert.pem')
+    root_ca_key_path = join(root_ca_dir, 'key.pem')
+    cert_dir = join(webdir_cfg_dir, 'certs', cert_cn)
+    cert_path = join(cert_dir, 'cert.pem')
+    key_path = join(cert_dir, 'key.pem')
+    fullchain_path = join(cert_dir, 'fullchain.pem')
+    is_cert_dirty = False
+    os.makedirs(webdir_cfg_dir, exist_ok=True)
+    os.makedirs(root_ca_dir, exist_ok=True)
     os.makedirs(cert_dir, exist_ok=True)
 
-    CA_crt_path = join(cert_dir, 'RootCA.crt')
-    CA_key_path = join(cert_dir, 'RootCA.key')
-    crt_path = join(cert_dir, f'{cert_name}.crt')
-    key_path = join(cert_dir, f'{cert_name}.key')
-    fullchain_path = join(cert_dir, f'{cert_name}.fullchain.crt')
-    is_crt_dirty = False
-
-    if isfile(CA_key_path):
-        CA_key = import_key(CA_key_path)
+    if isfile(root_ca_key_path):
+        root_ca_key = import_key(root_ca_key_path)
     else:
-        print(f'[SSL] generating CA {CA_key_path}')
-        CA_key = generate_key()
-        export_key(CA_key, CA_key_path)
-        assert isfile(CA_key_path), repr(CA_key_path)
-        os.chmod(CA_key_path, 0o600)
-        is_crt_dirty = True
+        print(f'tls: generating {root_ca_key_path}')
+        root_ca_key = generate_key()
+        export_key(root_ca_key, root_ca_key_path)
+        assert isfile(root_ca_key_path), repr(root_ca_key_path)
+        os.chmod(root_ca_key_path, 0o600)
+        is_cert_dirty = True
 
-    if not isfile(CA_crt_path) or is_crt_dirty:
-        print(f'[SSL] generating CA {CA_crt_path}')
-        CA_name = random_id('WebDir-RootCA-')
-        CA_crt = sign_v3_ca(
-            certificate_builder(CA_name, CA_key, CA_name, CA_key, 9487),
-            subject_key=CA_key, issuer_key=CA_key
+    if not isfile(root_ca_cert_path) or is_cert_dirty:
+        print(f'tls: generating {root_ca_cert_path}')
+        root_ca_name = random_id('WebDir Root CA - ')
+        root_ca_cert = sign_v3_ca(
+            certificate_builder(root_ca_name, root_ca_key, root_ca_name, root_ca_key, 9487),
+            subject_key=root_ca_key, issuer_key=root_ca_key
         )
-        export_certificate(CA_crt, CA_crt_path)
-        assert isfile(CA_crt_path), repr(CA_crt_path)
-        is_crt_dirty = True
+        export_certificate(root_ca_cert, root_ca_cert_path)
+        assert isfile(root_ca_cert_path), repr(root_ca_cert_path)
+        is_cert_dirty = True
     else:
-        CA_crt = import_certificate(CA_crt_path)
-        CA_cn_attrs = CA_crt.subject.get_attributes_for_oid(NameOID.COMMON_NAME)
-        assert len(CA_cn_attrs) == 1, repr(CA_cn_attrs)
-        CA_name = CA_cn_attrs[0].value
+        root_ca_cert = import_certificate(root_ca_cert_path)
+        root_ca_cn_attrs = root_ca_cert.subject.get_attributes_for_oid(NameOID.COMMON_NAME)
+        assert len(root_ca_cn_attrs) == 1, repr(root_ca_cn_attrs)
+        root_ca_name = root_ca_cn_attrs[0].value
 
     if isfile(key_path):
-        key = import_key(CA_key_path)
+        key = import_key(root_ca_key_path)
     else:
-        print(f'[SSL] generating {key_path}')
+        print(f'tls: generating {key_path}')
         key = generate_key()
         export_key(key, key_path)
         assert isfile(key_path), repr(key_path)
         os.chmod(key_path, 0o600)
-        is_crt_dirty = True
+        is_cert_dirty = True
 
-    if isfile(crt_path):
-        crt = import_certificate(crt_path)
-        remain = crt.not_valid_after - datetime.utcnow()
+    if isfile(cert_path):
+        cert = import_certificate(cert_path)
+        remain = cert.not_valid_after - datetime.utcnow()
         if remain < timedelta(days=365):
-            print(f'[SSL] renewing {crt_path}')
-            os.remove(crt_path)
+            print(f'tls: renewing {cert_path}')
+            os.remove(cert_path)
 
-    crt_cn = 'localhost'
-    if common_name is None:
-        print(f'[SSL] WARNING: you are using default CN {crt_cn!r}')
-        print('      change this by adding --https-host HOSTNAME')
-    else:
-        crt_cn = common_name
-
-    if not isfile(crt_path) or is_crt_dirty:
-        print(f'[SSL] generating {crt_path}')
-        crt_san = [x509.IPAddress(ipaddress.ip_address(ip))
-                   for ip in get_available_hosts(host)]
-        if common_name is not None:
-            crt_san.append(x509.DNSName(common_name))
-        crt = sign_usr_cert_has_san(
-            certificate_builder(crt_cn, key, CA_name, CA_key, 397),
-            subject_key=key, issuer_key=CA_key, san=crt_san
+    if not isfile(cert_path) or is_cert_dirty:
+        print(f'tls: generating {cert_path}')
+        cert = sign_usr_cert_has_san(
+            certificate_builder(cert_cn, key, root_ca_name, root_ca_key, 397),
+            subject_key=key, issuer_key=root_ca_key, san=[x509.DNSName(cert_cn)],
         )
-        export_certificate(crt, crt_path)
-        assert isfile(crt_path), repr(crt_path)
-        is_crt_dirty = True
+        export_certificate(cert, cert_path)
+        assert isfile(cert_path), repr(cert_path)
+        is_cert_dirty = True
 
-    if not isfile(fullchain_path) or is_crt_dirty:
-        print(f'[SSL] generating {fullchain_path}')
-        with open(crt_path) as in1, \
-             open(CA_crt_path) as in2, \
-             open(fullchain_path, 'w') as out:
+    if not isfile(fullchain_path) or is_cert_dirty:
+        print(f'tls: generating {fullchain_path}')
+        with open(cert_path) as in1, open(root_ca_cert_path) as in2, open(fullchain_path, 'w') as out:
             out.write(in1.read())
             out.write(in2.read())
         assert isfile(fullchain_path), repr(fullchain_path)
 
-    print(f'[SSL] using fullchain: {fullchain_path}')
-    print(f'[SSL] using key: {key_path}')
+    print(f'tls: using fullchain: {fullchain_path}')
+    print(f'tls: using key: {key_path}')
     return fullchain_path, key_path
 
 
@@ -1148,16 +1208,15 @@ def app():
     )
 
 
-def has_gunicorn():
+def run_with_gunicorn(app: Flask,
+                      host: str,
+                      port: int,
+                      ssl_context: Optional[Tuple[str, str]],
+                      workers: int):
     try:
-        __import__('gunicorn')
-        return True
-    except ImportError:
-        return False
-
-
-def run_with_gunicorn(app, host, port, ssl_context):
-    from gunicorn.app.base import BaseApplication
+        from gunicorn.app.base import BaseApplication
+    except ImportError as e:
+        exit_with_package_import_error(e)
 
     class Application(BaseApplication):
         def __init__(self, app, **options):
@@ -1175,64 +1234,118 @@ def run_with_gunicorn(app, host, port, ssl_context):
             return self.application
 
     options = {}
-    options['bind'] = f'{host}:{port}'
-    options['workers'] = 4
+    options['bind'] = '{}:{}'.format(host, port)
+    options['workers'] = workers
     if ssl_context is not None:
         assert isinstance(ssl_context, tuple), 'NOT IMPLEMENTED'
-        (
-            options['certfile'],
-            options['keyfile'],
-        ) = ssl_context
+        options['certfile'], options['keyfile'] = ssl_context
     Application(app, **options).run()
 
 
 def main():
-    parser = ArgumentParser()
-    parser.add_argument('--root', type=path_type, default='.', metavar='PATH', help='document root')
-    parser.add_argument('--host', type=str, default='0.0.0.0', help='bind host')
-    parser.add_argument('--port', type=int, default=9999, help='bind port')
-    parser.add_argument('--debug', action='store_true', help='enable Flask debug auto-reload')
-    parser.add_argument('--https', action='store_true', help='enable TLS')
-    parser.add_argument('--https-host', type=str, metavar='HOST', help='specified hostname for certificate')
-    parser.add_argument('--basic-auth', type=str, metavar='USER:PASS', help='authentication')
-    parser.add_argument('--no-list', '-L', action='store_true', help='disable directory listing')
-    parser.add_argument('--no-modify', '-M', action='store_true', help='disable modification feature')
-    args = parser.parse_args()
+    @dataclass
+    class Options:
+        root: str
+        host: str
+        port: int
+        debug: bool
+        https: bool
+        https_host: str
+        basic_auth: str
+        no_list: bool
+        no_modify: bool
+        workers: int
+
+    def _path_type(path):
+        assert os.path.exists(path), f'path {path!r} does not exist'
+        return path
+
+    def _parse_args() -> Options:
+        parser = ArgumentParser()
+        parser.add_argument('root', nargs='?', type=_path_type, default='.',
+                            metavar='PATH', help='document root')
+        parser.add_argument('--host', type=str,
+                            default='0.0.0.0', help='bind host')
+        parser.add_argument('--port', type=int, default=9999, help='bind port')
+        parser.add_argument('--debug', action='store_true',
+                            help='enable Flask debug auto-reload')
+        parser.add_argument('--https', action='store_true', help='enable TLS')
+        parser.add_argument('--https-host', type=str, metavar='HOST',
+                            help='specified hostname for certificate')
+        parser.add_argument('--basic-auth', type=str,
+                            metavar='<USER:PASS>', help='authentication')
+        parser.add_argument('--no-list', '-L', action='store_true',
+                            help='disable directory listing')
+        parser.add_argument('--no-modify', '-M', action='store_true',
+                            help='disable modification feature')
+        parser.add_argument('--workers', '-w', type=int, default=1,
+                            metavar='N', help='number of workers')
+        args = parser.parse_args()
+        return Options(**vars(args))
+
+    args = _parse_args()
+
+    basic_auth_show_password = False
 
     if args.basic_auth is not None:
+        BASIC_AUTH_PROMPT = 'PROMPT'
+        BASIC_AUTH_RANDOM = 'RANDOM'
         basic_auth_tuple = args.basic_auth.split(':')
-        if len(basic_auth_tuple) not in (1, 2) or not basic_auth_tuple[0]:
-            raise ValueError('expect --basic-auth <username>[:password]')
-        username = basic_auth_tuple[0]
-        if len(basic_auth_tuple) == 1 or not basic_auth_tuple[1]:
-            password = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
+        if len(basic_auth_tuple) == 1 and args.basic_auth == BASIC_AUTH_PROMPT:
+            import getpass
+            username = input('username: ')
+            password = getpass.getpass('password: ')
+        elif len(basic_auth_tuple) != 2:
+            print('error: unexpected --basic-auth value')
+            print('usage:')
+            print('  --basic-auth username:password')
+            print('  --basic-auth PROMPT')
+            print('  --basic-auth username:PROMPT')
+            print('  --basic-auth username:RANDOM')
+            sys.exit(1)
         else:
-            password = basic_auth_tuple[1]
-        args.basic_auth = f'{username}:{password}'
+            if basic_auth_tuple[0] == BASIC_AUTH_PROMPT:
+                username = input('username: ')
+            else:
+                username = basic_auth_tuple[0]
+            if basic_auth_tuple[1] == BASIC_AUTH_PROMPT:
+                import getpass
+                password = getpass.getpass('password: ')
+            elif basic_auth_tuple[1] == BASIC_AUTH_RANDOM:
+                chars = string.ascii_letters + string.digits
+                password = ''.join(random.choices(chars, k=8))
+                basic_auth_show_password = True
+            else:
+                password = basic_auth_tuple[1]
+        args.basic_auth = '{}:{}'.format(username, password)
 
     if args.https_host is not None:
         args.https = True
 
-    print('[Options]')
+    print('---')
+    print('options:')
     for key, value in vars(args).items():
-        if key == 'basic_auth' and isinstance(value, str):
-            value = value.split(':')[0] + ':[hidden]'
-        print(f'  {key:>10s} = {value!r}')
+        if key == 'basic_auth' and value and not basic_auth_show_password:
+            value = value.split(':')[0] + ':[redacted]'
+        print('  {}: {}'.format(key, j(value)))
+    print('---')
 
     if args.https:
-        try:
-            if args.https_host == 'adhoc':
-                ssl_context = 'adhoc'
-            else:
-                ssl_context = gencert(args.host, args.https_host)
-        except Exception:
-            print('error: failed to generate self-signed certificate')
-            print(traceback.format_exc())
-            print('warning: falling back ssl_context to adhoc')
+        if args.https_host == 'adhoc':
             ssl_context = 'adhoc'
+        else:
+            try:
+                ssl_context = generate_certificates(args.host, args.https_host)
+            except Exception:
+                print('error: failed to generate self-signed certificate')
+                print(traceback.format_exc())
+                print('warning: falling back ssl_context to adhoc')
+                ssl_context = 'adhoc'
         if args.https_host:
-            userpass = f'{args.basic_auth}@' if args.basic_auth else ''
-            origin = f'https://{userpass}{args.https_host}'
+            prefix = ''
+            if args.basic_auth and basic_auth_show_password:
+                prefix = args.basic_auth + '@'
+            origin = f'https://{prefix}{args.https_host}'
             if args.port != 443:
                 origin += f':{args.port}'
             print(f' * Will be running on {origin}')
@@ -1245,17 +1358,14 @@ def main():
         args.no_list,
         args.no_modify,
     )
-    if (
-        args.debug or
-        not has_gunicorn() or
-        ssl_context == 'adhoc'
-    ):
+    if args.debug or ssl_context == 'adhoc':
         print('Starting Flask app...')
         app.run(
             host=args.host,
             port=args.port,
             debug=args.debug,
             threaded=True,
+            processes=args.workers,
             ssl_context=ssl_context,
         )
     else:
@@ -1265,6 +1375,7 @@ def main():
             host=args.host,
             port=args.port,
             ssl_context=ssl_context,
+            workers=args.workers,
         )
 
 
