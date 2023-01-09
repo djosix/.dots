@@ -1,33 +1,79 @@
 #!/bin/bash
 
-function has_command {
-    command -v "$@" >/dev/null 2>&1
+function has {
+    &>/dev/null command -v "$@"
+}
+
+function show_help {
+    declare program
+    program="$(basename "$0")"
+    >&2 echo 'EXAMPLES'
+    >&2 echo "  $program [-g PATTERN] CMD ARG1 ARG2 ...  # glob"
+    >&2 echo "  $program [-G PATTERN] CMD ARG1 ARG2 ...  # inverse glob"
+    >&2 echo "  $program [-r PATTERN] CMD ARG1 ARG2 ...  # regex"
+    >&2 echo "  $program [-R PATTERN] CMD ARG1 ARG2 ...  # inverse regex"
+    >&2 echo "  $program 'CMD ARG1 ARG2'  # execute command using bash -c"
+    >&2 echo "NOTE"
+    >&2 echo "  This command requires that 'reflex' is installed."
+    >&2 echo "  To install it, run:"
+    >&2 echo "    go install github.com/cespare/reflex@latest"
 }
 
 if [[ $# == 0 ]]; then
-    declare program
-    program="$(basename "$0")"
-    {
-        echo 'EXAMPLES'
-        echo "  $program -g PATTERN -- CMD ARG1 ARG2 ...  # glob"
-        echo "  $program -G PATTERN -- CMD ARG1 ARG2 ...  # inverse glob"
-        echo "  $program -r PATTERN -- CMD ARG1 ARG2 ...  # regex"
-        echo "  $program -R PATTERN -- CMD ARG1 ARG2 ...  # inverse regex"
-        echo "NOTE"
-        echo "  This command requires that 'reflex' is installed."
-        echo "  To install it, run:"
-        echo "    go install github.com/cespare/reflex@latest"
-    } 1>&2
+    show_help
+    exit 0
+fi
+
+if ! has reflex; then
+    >&2 echo 'error: reflex must be installed to use this command.'
+    >&2 echo 'to install reflex, run "go install github.com/cespare/reflex@latest".'
     exit 1
 fi
 
-if ! has_command reflex; then
-    {
-        echo 'error: reflex must be installed to use this command.'
-        echo 'to install reflex, run "go install github.com/cespare/reflex@latest".'
-    } 1>&2
+declare -a flags=()
+declare -a command=()
+while [[ $# -gt 0 ]]; do
+    declare arg="$1"
+    shift
+    case "$arg" in
+        -[rRgG]*)
+            if [[ ${#arg} -gt 2 ]]; then
+                flags+=("${arg:0:2}" "${arg:2}")
+            elif [[ $# == 0 ]]; then
+                >&2 echo "error: please provide a value for flag $arg"
+                exit 1
+            else
+                flags+=("$arg" "$1")
+                shift
+            fi
+            ;;
+        -h|--help)
+            show_help
+            exit 0
+            ;;
+        -*)
+            >&2 echo "error: unknown flag $arg"
+            exit 1
+            ;;
+        *)
+            command+=("$arg" "$@")
+            break
+            ;;
+    esac
+done
+
+if ! [[ ${#command[@]} -gt 0 ]]; then
+    >&2 echo 'error: please provide a command to run'
     exit 1
+fi
+
+if ! has "${command[0]}"; then
+    declare script
+    for s in "${command[@]}"; do
+        script="${script} ; ${s}"
+    done
+    command=("bash" "-c" "${script:3}")
 fi
 
 set -x
-command reflex -d none -s "$@"
+reflex -d none -s "${flags[@]}" -- "${command[@]}"
