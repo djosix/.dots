@@ -1,0 +1,202 @@
+#!/usr/bin/env python3
+
+import os
+import sys
+import argparse
+import asyncio
+import signal
+import builtins
+from collections import Counter
+from typing import List, Dict, Tuple, Optional, Union, NamedTuple
+from dataclasses import dataclass
+from contextlib import suppress
+
+try:
+    import aiofiles
+    from watchfiles import awatch
+except ImportError:
+    print('Please run this command to install required packages:')
+    print('  python3 -m pip install aiofiles watchfiles')
+    sys.exit(1)
+
+
+class Options(NamedTuple):
+    config_path: str
+    delay: float
+    verbose: bool
+
+
+def get_options() -> Options:
+    parser = argparse.ArgumentParser()
+    parser.add_argument('config_path')
+    parser.add_argument('--delay', '-d', type=float, default=1.0)
+    parser.add_argument('--verbose', '-v', action='store_true')
+    ns = parser.parse_args()
+    return Options(**vars(ns))
+
+
+if sys.stdout.isatty():
+    def print(*args, **kwargs):
+        builtins.print('\033[33m' + ' '.join(args) + '\033[m', **kwargs)
+
+
+@dataclass
+class Worker:
+    __active: bool = False
+    __process: Optional[asyncio.subprocess.Process] = None
+    __task: Optional[asyncio.Task] = None
+
+    def run(self, opts: Options, command: Union[str, Tuple[str]]):
+        assert not self.__active and self.__task is None
+        self.__active = True
+        self.__task = asyncio.create_task(self.__loop(opts, command))
+
+    async def __loop(self, opts: Options, command: Union[str, Tuple[str]]):
+        if isinstance(command, str):
+            sp_func = asyncio.create_subprocess_shell
+            sp_args = (command, )
+        else:
+            assert all(isinstance(a, str) for a in command)
+            sp_func = asyncio.create_subprocess_exec
+            sp_args = tuple(command)
+
+        while self.__active:
+            if opts.verbose:
+                print('run:', command)
+            self.__process = await sp_func(
+                *sp_args,
+                preexec_fn=lambda: os.setpgid(0, 0),
+                stdin=asyncio.subprocess.DEVNULL,
+            )
+            await self.__process.wait()
+            if opts.verbose:
+                print('done:', command)
+            await asyncio.sleep(opts.delay)
+
+    async def stop(self):
+        self.__active = False
+        if self.__process is not None:
+            with suppress(ProcessLookupError):
+                os.killpg(self.__process.pid, signal.SIGKILL)
+        if self.__task is not None:
+            self.__task.cancel()
+            with suppress(asyncio.CancelledError):
+                await self.__task
+
+
+async def sync_state(opts: Options,
+                     state: Dict[str, List[Worker]],
+                     commands: List[str]):
+    command_counts = dict(Counter(commands))
+    removed = []
+
+    # Remove commands
+    for command in list(state.keys()):
+        if command_counts.get(command, 0) > 0:
+            continue
+        for worker in state.pop(command):
+            print('remove:', command)
+            removed.append(worker.stop())
+
+    # Sync command counts
+    for command, count in command_counts.items():
+        workers = state.setdefault(command, [])
+        while len(workers) < count:
+            print('add:', command)
+            worker = Worker()
+            worker.run(opts, command)
+            workers.append(worker)
+        while len(workers) > count:
+            worker = workers.pop(-1)
+            print('remove:', command)
+            removed.append(worker.stop())
+
+    with suppress(asyncio.CancelledError):
+        await asyncio.gather(*removed)
+
+
+async def read_config(path: str) -> Optional[List[Union[str, Tuple[str]]]]:
+    config = []
+    async with aiofiles.open(path) as f:
+        content = await f.read()
+
+    ext = path.split('.')[-1].lower()
+    if ext in ('yaml', 'yml'):
+        import yaml
+        config_obj = yaml.safe_load(content)
+    elif ext in ('json',):
+        import json
+        config_obj = json.loads(content)
+    else:
+        config_obj = content.split('\n')
+
+    if not isinstance(config_obj, list):
+        return None
+
+    for item in config_obj:
+        if isinstance(item, list):
+            if not all(isinstance(s, (int, float, str)) for s in item):
+                return None
+            command = tuple(map(str, item))
+            if len(command) == 0:
+                continue
+            config.append(command)
+        else:
+            if not isinstance(item, str):
+                return None
+            command = item.strip()
+            if len(command) == 0:
+                continue
+            config.append(item)
+
+    return config
+
+
+async def main(opts: Options):
+    # Touch to ensure the file exists
+    if not os.path.exists(opts.config_path):
+        await (await aiofiles.open(opts.config_path, 'a+')).close()
+        print('touched', opts.config_path)
+
+    print('watching', opts.config_path)
+
+    state: Dict[str, List[Worker]] = {}
+    stop_event = asyncio.Event()
+
+    async def shutdown():
+        print('shutdown')
+        stop_event.set()
+        tasks = [
+            worker.stop()
+            for workers in state.values()
+            for worker in workers
+        ]
+        await asyncio.gather(*tasks)
+
+    loop = asyncio.get_running_loop()
+
+    # Setup signal handlers for graceful shutdown
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        loop.add_signal_handler(sig, lambda: loop.create_task(shutdown()))
+
+    async def sync():
+        print('load', opts.config_path)
+        config = await read_config(opts.config_path)
+
+        if config is None:
+            print('error: invalid format, expect a string array')
+            return
+
+        # Show target running commands
+        for i, command in enumerate(config):
+            print(f'[{i}] {command}')
+
+        await sync_state(opts, state, config)
+
+    await sync()
+    async for _ in awatch(opts.config_path, stop_event=stop_event):
+        await sync()
+
+
+if __name__ == '__main__':
+    asyncio.run(main(get_options()))
