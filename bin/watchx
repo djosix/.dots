@@ -4,6 +4,9 @@ function has {
     &>/dev/null command -v "$@"
 }
 
+declare GO_INSTALL="GOPROXY=direct go install"
+declare GO_REFLEX_PKG="github.com/djosix/reflex@latest"
+
 function show_help {
     declare program
     program="$(basename "$0")"
@@ -16,7 +19,7 @@ function show_help {
     >&2 echo "NOTE"
     >&2 echo "  This command requires that 'reflex' is installed."
     >&2 echo "  To install it, run:"
-    >&2 echo "    go install github.com/cespare/reflex@latest"
+    >&2 echo "    $GO_INSTALL $GO_REFLEX_PKG"
 }
 
 if [[ $# == 0 ]]; then
@@ -26,7 +29,7 @@ fi
 
 if ! has reflex; then
     >&2 echo 'error: reflex must be installed to use this command.'
-    >&2 echo 'to install reflex, run "go install github.com/cespare/reflex@latest".'
+    >&2 echo "       to install reflex, run \"$GO_INSTALL $GO_REFLEX_PKG\"."
     exit 1
 fi
 
@@ -76,4 +79,4 @@ if ! has "${command[0]}"; then
 fi
 
 set -x
-reflex -d none -s "${flags[@]}" -- "${command[@]}"
+reflex -d none -s -A "${flags[@]}" -- "${command[@]}"
