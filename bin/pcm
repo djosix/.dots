@@ -5,18 +5,29 @@ import sys
 import argparse
 import asyncio
 import signal
-import builtins
 from collections import Counter
 from typing import List, Dict, Tuple, Optional, Union, NamedTuple
 from dataclasses import dataclass
 from contextlib import suppress
 
+
+SUPPORTS_ANSI_COLORS = os.environ.get('TERM') is not None
+PCM_COLORED_LOG_FMT = '\033[33;1m{}\033[m'
+PCM_LOG_PREFIX = '[pcm] '
+
+def pcm_print(*args, **kwargs):
+    text = PCM_LOG_PREFIX + ' '.join(args)
+    if SUPPORTS_ANSI_COLORS:
+        text = PCM_COLORED_LOG_FMT.format(text)
+    print(text, **kwargs)
+
+
 try:
     import aiofiles
     from watchfiles import awatch
 except ImportError:
-    print('Please run this command to install required packages:')
-    print('  python3 -m pip install aiofiles watchfiles')
+    pcm_print('Please run this command to install required packages:')
+    pcm_print('  python3 -m pip install aiofiles watchfiles')
     sys.exit(1)
 
 
@@ -27,17 +38,12 @@ class Options(NamedTuple):
 
 
 def get_options() -> Options:
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description='Persistent Command Manager (PCM)')
     parser.add_argument('config_path')
     parser.add_argument('--delay', '-d', type=float, default=1.0)
     parser.add_argument('--verbose', '-v', action='store_true')
     ns = parser.parse_args()
     return Options(**vars(ns))
-
-
-if sys.stdout.isatty():
-    def print(*args, **kwargs):
-        builtins.print('\033[33m' + ' '.join(args) + '\033[m', **kwargs)
 
 
 @dataclass
@@ -62,7 +68,7 @@ class Worker:
 
         while self.__active:
             if opts.verbose:
-                print('run:', command)
+                pcm_print('run:', command)
             self.__process = await sp_func(
                 *sp_args,
                 preexec_fn=lambda: os.setpgid(0, 0),
@@ -70,7 +76,7 @@ class Worker:
             )
             await self.__process.wait()
             if opts.verbose:
-                print('done:', command)
+                pcm_print('done:', command)
             await asyncio.sleep(opts.delay)
 
     async def stop(self):
@@ -95,20 +101,20 @@ async def sync_state(opts: Options,
         if command_counts.get(command, 0) > 0:
             continue
         for worker in state.pop(command):
-            print('remove:', command)
+            pcm_print('remove:', command)
             removed.append(worker.stop())
 
     # Sync command counts
     for command, count in command_counts.items():
         workers = state.setdefault(command, [])
         while len(workers) < count:
-            print('add:', command)
+            pcm_print('add:', command)
             worker = Worker()
             worker.run(opts, command)
             workers.append(worker)
         while len(workers) > count:
             worker = workers.pop(-1)
-            print('remove:', command)
+            pcm_print('remove:', command)
             removed.append(worker.stop())
 
     with suppress(asyncio.CancelledError):
@@ -152,19 +158,35 @@ async def read_config(path: str) -> Optional[List[Union[str, Tuple[str]]]]:
     return config
 
 
+async def create_default_config(path: str):
+    text = ''
+    _, ext = os.path.splitext(path.lower())
+    if ext == '.json':
+        import json
+        text = json.dumps([], indent=2) + '\n'
+    elif ext in ('.yaml', '.yml'):
+        import yaml
+        import io
+        s = io.StringIO()
+        yaml.safe_dump([], s, indent=2)
+        text = s.getvalue()
+    async with aiofiles.open(path, 'a+') as f:
+        await f.write(text)
+
+
 async def main(opts: Options):
     # Touch to ensure the file exists
     if not os.path.exists(opts.config_path):
-        await (await aiofiles.open(opts.config_path, 'a+')).close()
-        print('touched', opts.config_path)
-
-    print('watching', opts.config_path)
+        pcm_print('initializing', opts.config_path)
+        await create_default_config(opts.config_path)
+    else:
+        assert os.path.isfile(opts.config_path), 'config path is not a file'
 
     state: Dict[str, List[Worker]] = {}
     stop_event = asyncio.Event()
 
     async def shutdown():
-        print('shutdown')
+        pcm_print('shutdown')
         stop_event.set()
         tasks = [
             worker.stop()
@@ -180,20 +202,22 @@ async def main(opts: Options):
         loop.add_signal_handler(sig, lambda: loop.create_task(shutdown()))
 
     async def sync():
-        print('load', opts.config_path)
+        pcm_print('loading', opts.config_path)
         config = await read_config(opts.config_path)
 
         if config is None:
-            print('error: invalid format, expect a string array')
+            pcm_print('error: invalid format, expect a string array')
             return
 
         # Show target running commands
         for i, command in enumerate(config):
-            print(f'[{i}] {command}')
+            pcm_print(f'[{i}] {command}')
 
         await sync_state(opts, state, config)
 
     await sync()
+
+    pcm_print('watching', opts.config_path)
     async for _ in awatch(opts.config_path, stop_event=stop_event):
         await sync()
 
