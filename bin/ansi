@@ -1,0 +1,32 @@
+#!/bin/bash
+
+function e {
+    local s
+    case "$#" in
+        0) s='0' ;;
+        1) s="$1" ;;
+        2) s="$1;$2" ;;
+        *) >&2 echo "error: invalid number of arguments: $#" && return 1 ;;
+    esac
+    echo "\033[${s}m"
+}
+
+function highlight {
+    printf "\033[31;1;4m$*\033[0m\n"
+}
+
+function comment {
+    printf "\033[2;3m$*\033[0m\n"
+}
+
+echo "format: \033[$(highlight N1)m            $(comment '# one code')"
+echo "format: \033[$(highlight 'N1;N2;...;NN')m  $(comment '# multiple codes')"
+echo "format: \033[$(highlight '0')m             $(comment '# reset')"
+echo "codes:"
+
+for i in {0..127}; do
+    printf "$(e $i)%4s$(e)" $i
+    if (( (i+1) % 16 == 0 )); then
+        echo 
+    fi
+done
