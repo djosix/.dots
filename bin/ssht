@@ -3,6 +3,7 @@
 import sys
 import os
 import re
+import time
 import argparse
 import subprocess as sp
 from socket import gethostbyname
@@ -12,6 +13,21 @@ from typing import List, NamedTuple
 def exit_with_message(msg):
     print(msg)
     os._exit(1)
+
+
+class ExpBackoff:
+    def __init__(self, min_delay: float, max_delay: float, steps: int):
+        self.delay = min_delay
+        self.min_delay = min_delay
+        self.max_delay = max_delay
+        self.factor = (max_delay / min_delay) ** (1 / steps)
+
+    def step(self, ok: bool):
+        if ok:
+            self.delay = self.min_delay
+            return
+        time.sleep(self.delay)
+        self.delay = min(self.max_delay, self.delay * self.factor)
 
 
 class Options(NamedTuple):
@@ -78,7 +94,11 @@ def get_host_port(target, default_host, resolve_now=True):
 
 def main():
     opts = Options.parse_from(sys.argv)
-    run(opts, get_ssh_base_argv(opts.target))
+
+    try:
+        run(opts, get_ssh_base_argv(opts.target))
+    except KeyboardInterrupt:
+        exit_with_message('\n[exiting]')
 
 
 def run(opts: Options, ssh_base_argv: List[str]):
@@ -108,11 +128,10 @@ def run(opts: Options, ssh_base_argv: List[str]):
     print('info: {!r}'.format(' '.join(argv)))
     print('info: press ctrl+c to exit')
 
+    backoff = ExpBackoff(0.1, 5.0, 50)
     while True:
-        try:
-            sp.Popen(argv).wait()
-        except KeyboardInterrupt:
-            exit_with_message('\n[exiting]')
+        ok = sp.Popen(argv).wait() == 0
+        backoff.step(ok)
 
 
 if __name__ == '__main__':
