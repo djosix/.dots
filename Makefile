@@ -10,7 +10,7 @@ GIT_MAIL = djosicks@gmail.com
 .PHONY: default part all bash zsh vim tmux git vundle dirs update reset
 
 default:
-	@cat USAGE.txt
+	@sed '/```/d;1,/<!--BeginUsage-->/d;/<!--EndUsage-->/,$$d' README.md
 
 part: bash zsh vim tmux
 
