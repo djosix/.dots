@@ -7,14 +7,16 @@ GIT_NAME = djosix
 GIT_MAIL = djosicks@gmail.com
 
 
-.PHONY: default part all bash zsh vim tmux git vundle dirs update reset
+.PHONY: default base more all
+.PHONY: bash zsh vim tmux git vim_plug dirs
+.PHONY: update reset
 
 default:
 	@sed '/```/d;1,/<!--BeginUsage-->/d;/<!--EndUsage-->/,$$d' README.md
 
-part: bash zsh vim tmux
-
-all: bash zsh vim tmux git vim_plug dirs
+base: bash zsh vim tmux
+more: git vim_plug dirs
+all: base more
 
 bash:
 	@echo '===> bash'
