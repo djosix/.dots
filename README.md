@@ -1,7 +1,7 @@
 ## Dotfiles for Linux and macOS
 
 - Available targets: `make`
-
+  <!--BeginUsage-->
   ```
   Select targets to run:
 
@@ -20,7 +20,9 @@
     update        Discard and update
     discard       Discard changes in .dots
     cleanup       Remove backup files
+  
   ```
+  <!--EndUsage-->
 
 - Quick install
 
