@@ -103,19 +103,18 @@ def main():
 
 def run(opts: Options, ssh_base_argv: List[str]):
     argv = ssh_base_argv.copy()
+
     if bool(opts.local_listen) + bool(opts.remote_listen) + bool(opts.socks_listen) != 1:
         exit_with_message('error: please specify exactly one of "-l" or "-r" or "-s"')
-    elif (opts.local_listen or opts.remote_listen) and not opts.connect:
-        exit_with_message('error: "-c" should be specified')
     elif opts.local_listen:
         listen_host, listen_port = get_host_port(opts.local_listen, '*')
-        connect_host, connect_port = get_host_port(opts.connect, 'localhost')
+        connect_host, connect_port = get_host_port(opts.connect or opts.local_listen, 'localhost')
         argv += ['-L', '{}:{}:{}:{}'.format(listen_host, listen_port, connect_host, connect_port)]
     elif opts.remote_listen:
         print('info: you need to add "GatewayPorts clientspecified" to /etc/ssh/sshd_config')
         print('      on the remote host and try reload sshd with "systemctl reload sshd".')
         listen_host, listen_port = get_host_port(opts.remote_listen, '*', False)
-        connect_host, connect_port = get_host_port(opts.connect, 'localhost')
+        connect_host, connect_port = get_host_port(opts.connect or opts.remote_listen, 'localhost')
         argv += ['-R', '{}:{}:{}:{}'.format(listen_host, listen_port, connect_host, connect_port)]
     elif opts.socks_listen:
         host, port = get_host_port(opts.socks_listen, '*', False)
