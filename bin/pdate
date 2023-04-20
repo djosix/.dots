@@ -59,7 +59,7 @@ def print_formatted_datetime(timestamp: float):
     # ISO8601
     elif args.output == 'iso8601':
         tz = timezone(timedelta(hours=args.timezone))
-        utc_datetime = datetime.utcfromtimestamp(timestamp).astimezone(tz)
+        utc_datetime = datetime.fromtimestamp(timestamp).astimezone(tz)
         timespec = {'s': 'seconds',
                     'ms': 'milliseconds',
                     'us': 'microseconds'}[args.unit]
