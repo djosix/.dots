@@ -108,7 +108,7 @@ function gct     { command git commit -m "$(date +"Commit %Y/%m/%d %H:%M:%S")"; 
 function gcl     { command git clone "$@"; }
 function gcl1    { command git clone --depth 1 "$@"; }
 function gck     { command git checkout "$@"; }
-function gbh     { command git branch "$@"; }
+function gbh     { command git branch "$@" | cat; }
 function gbc     { command git branch --show-current; }
 function gpsh    { command git push "$@"; }
 function gpom    { command git push origin "$(gbc)" "$@"; }
