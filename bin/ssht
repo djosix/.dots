@@ -127,7 +127,7 @@ def run(opts: Options, ssh_base_argv: List[str]):
     print('info: {!r}'.format(' '.join(argv)))
     print('info: press ctrl+c to exit')
 
-    backoff = ExpBackoff(0.1, 5.0, 50)
+    backoff = ExpBackoff(1.0, 60.0, 100)
     while True:
         ok = sp.Popen(argv).wait() == 0
         backoff.step(ok)
