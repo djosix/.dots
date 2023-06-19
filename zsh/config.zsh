@@ -104,7 +104,7 @@ function glgg    { command git log --all --decorate --oneline --graph "$@"; }
 function ggi     { command git init "$@"; }
 function gra     { command git remote add "$@"; }
 function gcm     { command git commit -m "$@"; }
-function gct     { command git commit -m "$(date +"Commit %Y/%m/%d %H:%M:%S")"; }
+function gct     { command git commit -m "$(date +"Commit %Y-%m-%d %H:%M:%S")"; }
 function gcl     { command git clone "$@"; }
 function gcl1    { command git clone --depth 1 "$@"; }
 function gck     { command git checkout "$@"; }
