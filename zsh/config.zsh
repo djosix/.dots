@@ -95,28 +95,28 @@ function date() {
 }
 
 # git
-function ga      { command git add "$@"; }
-function gaa     { command git add -A; }
-function gau     { command git add -u "$@"; }
-function gst     { command git status "$@"; }
-function glg     { command git log "$@"; }
-function glgg    { command git log --all --decorate --oneline --graph "$@"; }
-function ggi     { command git init "$@"; }
-function gra     { command git remote add "$@"; }
-function gcm     { command git commit -m "$@"; }
-function gct     { command git commit -m "$(date +"Commit %Y-%m-%d %H:%M:%S")"; }
-function gcl     { command git clone "$@"; }
-function gcl1    { command git clone --depth 1 "$@"; }
-function gck     { command git checkout "$@"; }
-function gbh     { command git branch "$@" | cat; }
-function gbc     { command git branch --show-current; }
-function gpsh    { command git push "$@"; }
-function gpom    { command git push origin "$(gbc)" "$@"; }
-function ggg     { gaa && gct && gpom; }
-function gpl     { command git pull "$@"; }
-function gplom   { command git pull origin "$(gbc)"; }
-function gplomar { command git pull origin "$(gbc)" --autostash --rebase; }
-function grst    { command git reset "$@"; }
+alias ga='git add'
+alias gaa='git add -A'
+alias gau='git add -u'
+alias gst='git status'
+alias glg='git log'
+alias glgg='git log --all --decorate --oneline --graph'
+alias ggi='git init'
+alias gra='git remote add'
+alias gcm='git commit -m'
+alias gct='git commit -m "$(date +"Commit %Y-%m-%d %H:%M:%S")"'
+alias gcl='git clone'
+alias gcl1='git clone --depth 1'
+alias gck='git checkout'
+alias gbh='git --no-pager branch'
+alias gbc='git branch --show-current'
+alias gph='git push'
+alias gpom='git push origin "$(git branch --show-current)"'
+alias ggg='gaa && gct && gpom'
+alias gpl='git pull'
+alias gplar='git pull --autostash --rebase'
+alias gplom='git pull origin "$(git branch --show-current)"'
+alias grst='git reset'
 
 function int {
     local code="$?"
