@@ -1,5 +1,0 @@
-#!/bin/bash
-
-declare port="$1"
-shift
-ssh -NL "$port:127.0.0.1:$port" "$@"
