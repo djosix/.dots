@@ -89,7 +89,7 @@ function date() {
     r|R|tz|TZ|rfc|RFC|rfc3339|RFC3339)
         shift; command date -u +"%Y-%m-%dT%H:%M:%SZ" "$@" ;;
     i|I|iso|ISO|iso8601|ISO8601)
-        shift; command date +"%Y-%m-%dT%H:%M:%S%:z" "$@" ;;
+        shift; command date +"%Y-%m-%dT%H:%M:%S%z" "$@" | sed -r 's/(\+..)/\1:/g' ;;
     *)  command date "$@" ;;
     esac
 }
