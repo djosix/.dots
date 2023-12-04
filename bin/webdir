@@ -30,6 +30,7 @@ def exit_with_package_import_error(e: ImportError):
         'werkzeug',
         'cryptography',
         'gunicorn',
+        'markupsafe',
     ]
     print(traceback.format_exc())
     print('You must install all the required packages:')
@@ -39,11 +40,12 @@ def exit_with_package_import_error(e: ImportError):
 
 try:
     from flask import (
-        Flask, request, abort, escape, redirect, make_response, jsonify
+        Flask, request, abort, redirect, make_response, jsonify
     )
     from flask.helpers import send_file
     from flask_httpauth import HTTPBasicAuth
     from werkzeug.utils import secure_filename
+    from markupsafe import escape
 except ImportError as e:
     exit_with_package_import_error(e)
 
