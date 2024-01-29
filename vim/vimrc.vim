@@ -25,6 +25,9 @@ set cursorline
 set hlsearch
 set incsearch
 
+set ignorecase
+set smartcase
+
 " set nowrap
 
 set t_Co=256

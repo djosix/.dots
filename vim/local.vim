@@ -2,6 +2,9 @@
 " Local Settings
 """"""""""""""""""""""""""""""""""""""""""""""""""
 
+set noignorecase
+set nosmartcase
+
 set mouse=a
 set clipboard=unnamed
 "set nu rnu " hybrid line number
