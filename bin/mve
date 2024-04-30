@@ -1,0 +1,25 @@
+#!/usr/bin/env python3
+
+import os, sys
+
+source, target = sys.argv[1:]
+assert os.path.isdir(source)
+assert os.path.isdir(target)
+
+for dirpath, _, files in os.walk(source):
+    for f in files:
+        path = os.path.join(dirpath, f)
+        path2 = target + path[len(source):]
+        assert os.path.abspath(path) != os.path.abspath(path2)
+        if not os.path.exists(path2):
+            print('rename', path, path2)
+            try:
+                os.makedirs(os.path.dirname(path2), exist_ok=True)
+                os.rename(path, path2)
+            except Exception as e:
+                print('error', str(e))
+        elif os.stat(path).st_size != os.stat(path2).st_size:
+            print('except', path, path2)
+        else:
+            print('skip', path)
+
