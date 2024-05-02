@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 
-import os, sys
+import os
+import sys
+import shutil
 
-source, target = sys.argv[1:]
+action, source, target = sys.argv[1:]
+fn = dict(mv=shutil.move, cp=shutil.copy, test=None)[action]
 assert os.path.isdir(source)
-assert os.path.isdir(target)
+assert os.path.isdir(target) or not os.path.exists(target)
 
 for dirpath, _, files in os.walk(source):
     for f in files:
@@ -12,14 +15,15 @@ for dirpath, _, files in os.walk(source):
         path2 = target + path[len(source):]
         assert os.path.abspath(path) != os.path.abspath(path2)
         if not os.path.exists(path2):
-            print('rename', path, path2)
+            print(action, path, path2)
+            if fn is None:
+                continue
             try:
                 os.makedirs(os.path.dirname(path2), exist_ok=True)
-                os.rename(path, path2)
+                fn(path, path2)
             except Exception as e:
                 print('error', str(e))
         elif os.stat(path).st_size != os.stat(path2).st_size:
             print('except', path, path2)
         else:
             print('skip', path)
-
