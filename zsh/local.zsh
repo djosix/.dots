@@ -10,6 +10,8 @@ fi
 #PATH=":$PATH"
 export PATH
 
+#zstyle ':omz:update' mode disabled
+
 rbenv() {
     [ -d "$HOME/.rbenv" ] || get-rbenv
     unset -f rbenv
