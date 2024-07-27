@@ -1,5 +1,8 @@
 #!/bin/bash
 
+export DISABLE_UPDATE_PROMPT="true"
+export DISABLE_AUTO_UPDATE="true"
+
 #source $HOME/.dots/zsh/mouse.zsh && zle-toggle-mouse
 
 if command_exists "brew"; then
