@@ -6,7 +6,7 @@ from dateutil.parser import (
     # python3 -m pip install dateutil
     parse as parse_date
 )
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone, timedelta, UTC
 
 
 def get_args():
@@ -51,7 +51,7 @@ def print_formatted_datetime(timestamp: float):
         return print(int(timestamp * multiplier))
     # RFC3339
     elif args.output == 'rfc3339':
-        utc_datetime = datetime.utcfromtimestamp(timestamp)
+        utc_datetime = datetime.fromtimestamp(timestamp, UTC)
         timespec = {'s': 'seconds',
                     'ms': 'milliseconds',
                     'us': 'microseconds'}[args.unit]
