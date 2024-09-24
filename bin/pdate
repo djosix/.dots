@@ -2,11 +2,14 @@
 
 import argparse
 import re
-from dateutil.parser import (
-    # python3 -m pip install dateutil
-    parse as parse_date
-)
 from datetime import datetime, timezone, timedelta, UTC
+
+try:
+    from dateutil.parser import parse as parse_date
+except:
+    import sys
+    print('error: python3 -m pip install python-dateutil', file=sys.stderr)
+    sys.exit(1)
 
 
 def get_args():
