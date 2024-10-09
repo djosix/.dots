@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [[ -x /sbin/md5 ]]; then
-    cat | md5
+    /sbin/md5 "$@"
 else
     cat | md5sum | awk '{print $1}'
 fi
