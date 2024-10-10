@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # Author: djosix
 # License: MIT
+# Description: A simple web file manager written in Python using FastAPI
 
-# python3 -m pip install -U flask flask_httpauth werkzeug cryptography gunicorn
 # autopep8 --max-line-length 130 -i `which webdir`
 
 import json
@@ -15,8 +15,9 @@ import enum
 import base64
 import traceback
 import textwrap
-from datetime import datetime, timedelta
-from typing import List, NamedTuple, Union, Optional, Tuple
+import getpass
+from datetime import datetime, timedelta, timezone
+from typing import NamedTuple, Union, Optional
 from argparse import ArgumentParser
 from contextlib import suppress
 from dataclasses import dataclass
@@ -25,26 +26,22 @@ from dataclasses import dataclass
 def exit_with_package_import_error(e: ImportError):
     assert isinstance(e, ImportError)
     REQUIRED_PACKAGES = [
-        'flask',
-        'flask_httpauth',
-        'werkzeug',
+        'fastapi',
+        'uvicorn',
         'cryptography',
-        'gunicorn',
         'markupsafe',
     ]
     print(traceback.format_exc())
     print('You must install all the required packages:')
-    print('  {} -m pip install {}'.format(sys.executable, ' '.join(REQUIRED_PACKAGES)))
+    print('  python3 -m pip install {}'.format(' '.join(REQUIRED_PACKAGES)))
     sys.exit(1)
 
 
 try:
-    from flask import (
-        Flask, request, abort, redirect, make_response, jsonify
-    )
-    from flask.helpers import send_file
-    from flask_httpauth import HTTPBasicAuth
-    from werkzeug.utils import secure_filename
+    import uvicorn
+    from fastapi import FastAPI, HTTPException, Request, Depends
+    from fastapi.security import HTTPBasic, HTTPBasicCredentials
+    from fastapi.responses import FileResponse, RedirectResponse, JSONResponse, HTMLResponse, PlainTextResponse
     from markupsafe import escape
 except ImportError as e:
     exit_with_package_import_error(e)
@@ -530,7 +527,7 @@ class ListDirHTML:
     @classmethod
     def generate(cls,
                  webpath: str,
-                 entries: List[Entry],
+                 entries: list[Entry],
                  allow_modify: bool,
                  folder_writable: bool) -> str:
 
@@ -654,7 +651,7 @@ class ListDirHTML:
 j = json.dumps
 
 
-def el(name, *args: List[Union[str, list, tuple, dict]], **kwargs) -> str:
+def el(name, *args: list[Union[str, list, tuple, dict]], **kwargs) -> str:
     if not kwargs.pop('when', True):
         return ''
     assert len(kwargs) == 0
@@ -832,152 +829,146 @@ class Handler:
         self.no_list = no_list
         self.no_modify = no_modify
 
-    def __is_browser_request(self) -> bool:
-        ua = request.user_agent.string.lower()
-        match = re.search(
-            r'(chrome|chromium|crios|firefox|fxios|safari|opr\/|edg)', ua)
-        return match is not None
+    def __is_browser_request(self, request: Request) -> bool:
+        ua = request.headers.get('User-Agent', '').lower()
+        expr = r'(chrome|chromium|crios|firefox|fxios|safari|opr\/|edg)'
+        return re.search(expr, ua) is not None
 
     def __abort(self, status: int, message: str):
-        if self.__is_browser_request():
-            return abort(status, message)
-        else:
-            return abort(make_response(jsonify(error=message), status))
+        raise HTTPException(status_code=status, detail=message)
 
-    def handle(self, path=''):
+    async def handle(self, request: Request):
         if request.method == 'GET':
-            return self.__handle_view(path)
+            return await self.__handle_view(request)
         elif request.method == 'POST':
-            action = request.form.get('action')
+            form = await request.form()
+            action = form.get('action')
             if action == 'upload':
-                return self.__handle_upload(path)
+                return await self.__handle_upload(request)
             elif action == 'delete':
-                return self.__handle_delete(path)
+                return await self.__handle_delete(request)
             elif action == 'new_folder':
-                return self.__handle_mkdir(path)
+                return await self.__handle_mkdir(request)
         self.__abort(400, 'unknown action')
 
-    def __handle_view(self, path):
+    async def __handle_view(self, request: Request):
+        path = request.url.path.lstrip('/')
         local_path = self.__get_local_path(path)
-        if local_path is None:
-            self.__abort(400, 'invalid path')
         if not os.path.exists(local_path):
             self.__abort(404, 'file or directory does not exist')
-        elif not PathUtil.get_readibility(local_path):
+        if not PathUtil.get_readibility(local_path):
             self.__abort(403, 'no permission to access this location')
-        elif os.path.isfile(local_path):
-            return send_file(local_path, mimetype=MiscUtil.guess_mimetype(local_path))
-        elif os.path.isdir(local_path):
+        if os.path.isfile(local_path):
+            return FileResponse(local_path, media_type=MiscUtil.guess_mimetype(local_path))
+        if os.path.isdir(local_path):
             if self.no_list:
                 self.__abort(403, 'directory listing is forbidden')
-            return self.__list_dir(local_path)
-        else:
-            self.__abort(403, 'firbidden')
+            return await self.__list_dir(local_path, self.__is_browser_request(request))
+        self.__abort(403, 'forbidden')
 
-    def __handle_delete(self, path):
+    async def __handle_delete(self, request: Request):
+        path = request.url.path.lstrip('/')
         if self.no_modify:
             self.__abort(403, 'modification is forbidden')
-        entry_names = request.form.getlist('name')
-        local_paths = [self.__get_local_path(
-            os.path.join(path, name)) for name in entry_names]
+        entry_names = (await request.form()).getlist('name')
+        local_paths = [self.__get_local_path(os.path.join(path, name)) for name in entry_names]
+
         for entry_name, local_path in zip(entry_names, local_paths):
             if local_path is None:
                 self.__abort(400, f'invalid path: {entry_name}')
             dirpath = os.path.dirname(local_path)
             if not PathUtil.get_writability(dirpath):
-                self.__abort(
-                    403, f'no permission to modify the parent directory of {entry_name}')
+                self.__abort(403, f'no permission to modify the parent directory of {entry_name}')
             if not PathUtil.get_writability(local_path):
-                self.__abort(
-                    403, f'no permission to delete {entry_name}')
+                self.__abort(403, f'no permission to delete {entry_name}')
+
         result = {}
-        from os.path import islink, isfile, isdir, join, exists
         for local_path in local_paths:
             if not local_path:
                 continue
-            if islink(local_path) or isfile(local_path):
+            if os.path.islink(local_path) or os.path.isfile(local_path):
                 with suppress(OSError):
                     os.remove(local_path)
-                continue
-            if isdir(local_path):
-                for prefix, dirs, files in os.walk(local_path, topdown=False):
-                    if not exists(prefix):
-                        continue
+            elif os.path.isdir(local_path):
+                for prefix, _, files in os.walk(local_path, topdown=False):
                     for name in files:
-                        file = join(prefix, name)
+                        file = os.path.join(prefix, name)
                         with suppress(OSError):
                             os.remove(file)
-                    for name in dirs:
-                        dir = join(prefix, name)
-                        if islink(dir):
-                            with suppress(OSError):
-                                os.remove(dir)
-                        else:
-                            with suppress(OSError):
-                                os.removedirs(dir)
                     with suppress(OSError):
                         os.removedirs(prefix)
+
         for entry_name, local_path in zip(entry_names, local_paths):
             result[entry_name] = not os.path.exists(local_path)
-        if not all(result.values()):
-            return result
-        if self.__is_browser_request():
-            return redirect(f'/{path}', 302)
-        else:
-            return {'deleted': result}
 
-    def __handle_upload(self, path):
+        if self.__is_browser_request(request):
+            return RedirectResponse(f'/{path}', status_code=302)
+        return JSONResponse({'deleted': result})
+
+    async def __handle_upload(self, request: Request):
+        path = request.url.path.lstrip('/')
         if self.no_modify:
             self.__abort(403, 'modification is forbidden')
         local_path = self.__get_local_path(path)
         if not os.path.isdir(local_path):
             self.__abort(403, 'location is not a directory')
-        if 'file' not in request.files:
-            self.__abort(400, 'file is not provided')
-        result = {}
-        for file in request.files.getlist('file'):
-            filename = secure_filename(file.filename)
-            filepath = os.path.join(local_path, filename)
-            try:
-                file.save(filepath)
-            except PermissionError:
-                self.__abort(
-                    403, 'no permission to upload to this location')
-            result[filename] = True
-        if self.__is_browser_request():
-            return redirect(f'/{path}#recent', 302)
-        else:
-            return {'uploaded': result}
 
-    def __handle_mkdir(self, path):
+        files = await request.form()
+        if 'file' not in files:
+            self.__abort(400, 'file is not provided')
+
+        result = {}
+        for file in files.getlist('file'):
+            assert not isinstance(file, str)
+            filepath = os.path.join(local_path, file.filename)
+            assert os.path.abspath(filepath).startswith(local_path)
+            try:
+                chunk_size = 4096
+                with open(filepath, 'wb') as dst:
+                    while chunk := await file.read(chunk_size):
+                        dst.write(chunk)
+            except PermissionError:
+                self.__abort(403, 'no permission to upload to this location')
+            result[file.filename] = True
+
+        if self.__is_browser_request(request):
+            return RedirectResponse(f'/{path}#recent', status_code=302)
+        return JSONResponse({'uploaded': result})
+
+    async def __handle_mkdir(self, request: Request):
+        path = request.url.path.lstrip('/')
         if self.no_modify:
             self.__abort(403, 'modification is forbidden')
-        name = request.form.get('name')
+        name = (await request.form()).get('name')
         if not name:
-            self.__abort(400, 'name in not provided')
+            self.__abort(400, 'name is not provided')
+
         folder_path = os.path.join(path, name)
         folder_path = self.__get_local_path(folder_path)
         if os.path.exists(folder_path):
             self.__abort(400, 'folder already exists')
+
         with suppress(OSError):
             os.makedirs(folder_path, exist_ok=True)
+
         if not os.path.isdir(folder_path):
             self.__abort(500, 'failed to create folder')
-        if self.__is_browser_request():
-            return redirect(f'/{path}#recent', 302)
-        else:
-            return {'new_folder': name}
+
+        if self.__is_browser_request(request):
+            return RedirectResponse(f'/{path}#recent', status_code=302)
+        return JSONResponse({'new_folder': name})
 
     def __get_local_path(self, path):
         abs_path = os.path.abspath(os.path.join(self.abs_root, path))
         if abs_path.startswith(self.abs_root):
             return abs_path
+        self.__abort(400, 'invalid path: {}'.format(path))
 
-    def __list_dir(self, abs_dir_path):
+    async def __list_dir(self, abs_dir_path: str, is_browser_request: bool):
         relpath = os.path.relpath(abs_dir_path, self.abs_root)
         webpath = os.path.abspath(os.path.join('/', relpath))
 
-        entries: List[Entry] = []
+        entries: list[Entry] = []
         for item_name in os.listdir(abs_dir_path):
             item_path = os.path.join(abs_dir_path, item_name)
             with suppress(Exception):
@@ -996,14 +987,15 @@ class Handler:
                 entries.append(entry)
         entries.sort(key=(lambda entry: (-entry.type.value, entry.name)))
 
-        if self.__is_browser_request():
+        if is_browser_request:
             allow_modify = not self.no_modify
             folder_writable = os.access(abs_dir_path, os.W_OK)
             html = ListDirHTML.generate(webpath, entries, allow_modify, folder_writable)
-            return make_response(html)
+            return HTMLResponse(content=html)
 
-        elif request.args.get('json') is not None:
-            return jsonify([
+        # Assuming the `json` query parameter is in the request arguments
+        if 'json' in request.query_params:
+            return JSONResponse(content=[
                 {
                     'name': entry.name,
                     'type': FormatUtil.entry_type(entry),
@@ -1012,35 +1004,42 @@ class Handler:
                 } for entry in entries
             ])
         else:
-            resp = make_response(''.join((
+            plain_text_content = ''.join((
                 '{}\t({} {})\n'.format(
                     FormatUtil.entry_name(entry),
                     FormatUtil.entry_permission(entry),
                     FormatUtil.entry_size(entry),
-                )
-                for entry in entries
-            )))
-            resp.mimetype = 'text/plain'
-            return resp
+                ) for entry in entries
+            ))
+            return PlainTextResponse(content=plain_text_content)
 
 
-def create_flask_app(root: str,
-                     basic_auth: Optional[str],
-                     no_list: bool,
-                     no_modify: bool) -> Flask:
-    app = Flask(__name__, static_folder=None)
+def create_fastapi_app(root: str,
+                       basic_auth: Optional[str],
+                       no_list: bool,
+                       no_modify: bool) -> FastAPI:
+    app = FastAPI()
     handler = Handler(root, no_list, no_modify)
-    handle = handler.handle
+
+    route_options = {
+        'methods': ['GET', 'POST'],
+        'endpoint': handler.handle,
+    }
+
     if basic_auth:
-        auth = HTTPBasicAuth()
-        auth.verify_password(lambda u, p: [None, u][f'{u}:{p}' == basic_auth])
-        handle = auth.login_required(handle)
-    for rule in ('/', '/<path:path>'):
-        app.add_url_rule(rule, 'handle', handle, methods=['GET', 'POST'])
+        async def auth(credentials: HTTPBasicCredentials = Depends(HTTPBasic())):
+            if not f"{credentials.username}:{credentials.password}" == basic_auth:
+                raise HTTPException(status_code=401, detail="Unauthorized")
+            return credentials
+        route_options['dependencies'] = [Depends(auth)]
+
+    for path in ('/', '{path:path}'):
+        app.add_api_route(path, **route_options)
+
     return app
 
 
-def generate_certificates(host: str, common_name: Optional[str] = None) -> Tuple[str, str]:
+def generate_certificates(host: str, common_name: Optional[str] = None) -> tuple[str, str]:
     from os.path import isfile, join, expanduser
     try:
         from cryptography.hazmat.primitives import serialization, hashes
@@ -1053,10 +1052,10 @@ def generate_certificates(host: str, common_name: Optional[str] = None) -> Tuple
     current_major = int(version.split('.')[0])
     lowest_major = 36
     if current_major < lowest_major:
-        print(f'tls: warning: package cryptography v{current_major} is lower than v{lowest_major}')
+        print(f'[TLS] warning: package cryptography v{current_major} is lower than v{lowest_major}')
 
     def generate_key():
-        return ec.generate_private_key(ec.SECP256R1)
+        return ec.generate_private_key(ec.SECP256R1())
 
     def import_key(path):
         with open(path, 'rb') as f:
@@ -1090,8 +1089,8 @@ def generate_certificates(host: str, common_name: Optional[str] = None) -> Tuple
                 .issuer_name(x509_name(issuer_CN))
                 .public_key(subject_key.public_key())
                 .serial_number(x509.random_serial_number())
-                .not_valid_before(datetime.utcnow())
-                .not_valid_after(datetime.utcnow() + timedelta(days=valid_days)))
+                .not_valid_before(datetime.now(timezone.utc))
+                .not_valid_after(datetime.now(timezone.utc) + timedelta(days=valid_days)))
 
     def sign_usr_cert_has_san(builder: x509.CertificateBuilder, subject_key, issuer_key, san):
         return (builder
@@ -1118,8 +1117,8 @@ def generate_certificates(host: str, common_name: Optional[str] = None) -> Tuple
 
     cert_cn = 'localhost'
     if common_name is None:
-        print(f'tls: warning: you are using default CN {cert_cn!r}')
-        print('tls: warning: you can change CN by adding --https-host HOSTNAME')
+        print(f'[TLS] warning: you are using default CN {cert_cn!r}')
+        print('[TLS] warning: you can change CN by adding --https-host HOSTNAME')
     else:
         cert_cn = common_name
 
@@ -1139,7 +1138,7 @@ def generate_certificates(host: str, common_name: Optional[str] = None) -> Tuple
     if isfile(root_ca_key_path):
         root_ca_key = import_key(root_ca_key_path)
     else:
-        print(f'tls: generating {root_ca_key_path}')
+        print(f'[TLS] generating {root_ca_key_path}')
         root_ca_key = generate_key()
         export_key(root_ca_key, root_ca_key_path)
         assert isfile(root_ca_key_path), repr(root_ca_key_path)
@@ -1147,7 +1146,7 @@ def generate_certificates(host: str, common_name: Optional[str] = None) -> Tuple
         is_cert_dirty = True
 
     if not isfile(root_ca_cert_path) or is_cert_dirty:
-        print(f'tls: generating {root_ca_cert_path}')
+        print(f'[TLS] generating {root_ca_cert_path}')
         root_ca_name = random_id('WebDir Root CA - ')
         root_ca_cert = sign_v3_ca(
             certificate_builder(root_ca_name, root_ca_key, root_ca_name, root_ca_key, 9487),
@@ -1165,7 +1164,7 @@ def generate_certificates(host: str, common_name: Optional[str] = None) -> Tuple
     if isfile(key_path):
         key = import_key(root_ca_key_path)
     else:
-        print(f'tls: generating {key_path}')
+        print(f'[TLS] generating {key_path}')
         key = generate_key()
         export_key(key, key_path)
         assert isfile(key_path), repr(key_path)
@@ -1174,13 +1173,13 @@ def generate_certificates(host: str, common_name: Optional[str] = None) -> Tuple
 
     if isfile(cert_path):
         cert = import_certificate(cert_path)
-        remain = cert.not_valid_after - datetime.utcnow()
+        remain = cert.not_valid_after_utc - datetime.now(timezone.utc)
         if remain < timedelta(days=365):
-            print(f'tls: renewing {cert_path}')
+            print(f'[TLS] renewing {cert_path}')
             os.remove(cert_path)
 
     if not isfile(cert_path) or is_cert_dirty:
-        print(f'tls: generating {cert_path}')
+        print(f'[TLS] generating {cert_path}')
         cert = sign_usr_cert_has_san(
             certificate_builder(cert_cn, key, root_ca_name, root_ca_key, 397),
             subject_key=key, issuer_key=root_ca_key, san=[x509.DNSName(cert_cn)],
@@ -1190,58 +1189,24 @@ def generate_certificates(host: str, common_name: Optional[str] = None) -> Tuple
         is_cert_dirty = True
 
     if not isfile(fullchain_path) or is_cert_dirty:
-        print(f'tls: generating {fullchain_path}')
+        print(f'[TLS] generating {fullchain_path}')
         with open(cert_path) as in1, open(root_ca_cert_path) as in2, open(fullchain_path, 'w') as out:
             out.write(in1.read())
             out.write(in2.read())
         assert isfile(fullchain_path), repr(fullchain_path)
 
-    print(f'tls: using fullchain: {fullchain_path}')
-    print(f'tls: using key: {key_path}')
+    print(f'[TLS] using fullchain: {fullchain_path}')
+    print(f'[TLS] using key: {key_path}')
     return fullchain_path, key_path
 
 
 def app():
-    return create_flask_app(
+    return create_fastapi_app(
         os.environ.get('WEBDIR_ROOT', '.'),
         os.environ.get('WEBDIR_BASIC_AUTH'),
         os.environ.get('WEBDIR_NO_LIST') is not None,
         os.environ.get('WEBDIR_NO_MODIFY') is not None,
     )
-
-
-def run_with_gunicorn(app: Flask,
-                      host: str,
-                      port: int,
-                      ssl_context: Optional[Tuple[str, str]],
-                      workers: int):
-    try:
-        from gunicorn.app.base import BaseApplication
-    except ImportError as e:
-        exit_with_package_import_error(e)
-
-    class Application(BaseApplication):
-        def __init__(self, app, **options):
-            self.options = options
-            self.application = app
-            super().__init__()
-
-        def load_config(self):
-            config = {key: value for key, value in self.options.items()
-                      if key in self.cfg.settings and value is not None}
-            for key, value in config.items():
-                self.cfg.set(key.lower(), value)
-
-        def load(self):
-            return self.application
-
-    options = {}
-    options['bind'] = '{}:{}'.format(host, port)
-    options['workers'] = workers
-    if ssl_context is not None:
-        assert isinstance(ssl_context, tuple), 'NOT IMPLEMENTED'
-        options['certfile'], options['keyfile'] = ssl_context
-    Application(app, **options).run()
 
 
 def main():
@@ -1250,7 +1215,6 @@ def main():
         root: str
         host: str
         port: int
-        debug: bool
         https: bool
         https_host: str
         basic_auth: str
@@ -1269,8 +1233,6 @@ def main():
         parser.add_argument('--host', type=str,
                             default='0.0.0.0', help='bind host')
         parser.add_argument('--port', type=int, default=9999, help='bind port')
-        parser.add_argument('--debug', action='store_true',
-                            help='enable Flask debug auto-reload')
         parser.add_argument('--https', action='store_true', help='enable TLS')
         parser.add_argument('--https-host', type=str, metavar='HOST',
                             help='specified hostname for certificate')
@@ -1280,7 +1242,7 @@ def main():
                             help='disable directory listing')
         parser.add_argument('--no-modify', '-M', action='store_true',
                             help='disable modification feature')
-        parser.add_argument('--workers', '-w', type=int, default=1,
+        parser.add_argument('--workers', '-w', type=int, default=8,
                             metavar='N', help='number of workers')
         args = parser.parse_args()
         return Options(**vars(args))
@@ -1294,7 +1256,6 @@ def main():
         BASIC_AUTH_RANDOM = 'RANDOM'
         basic_auth_tuple = args.basic_auth.split(':')
         if len(basic_auth_tuple) == 1 and args.basic_auth == BASIC_AUTH_PROMPT:
-            import getpass
             username = input('username: ')
             password = getpass.getpass('password: ')
         elif len(basic_auth_tuple) != 2:
@@ -1311,7 +1272,6 @@ def main():
             else:
                 username = basic_auth_tuple[0]
             if basic_auth_tuple[1] == BASIC_AUTH_PROMPT:
-                import getpass
                 password = getpass.getpass('password: ')
             elif basic_auth_tuple[1] == BASIC_AUTH_RANDOM:
                 chars = string.ascii_letters + string.digits
@@ -1324,61 +1284,29 @@ def main():
     if args.https_host is not None:
         args.https = True
 
-    print('---')
-    print('options:')
     for key, value in vars(args).items():
         if key == 'basic_auth' and value and not basic_auth_show_password:
             value = value.split(':')[0] + ':[redacted]'
-        print('  {}: {}'.format(key, j(value)))
-    print('---')
+        print('[OPTION] {}: {}'.format(key, j(value)))
+
+    uvicorn_options = {
+        'app': create_fastapi_app(
+            args.root,
+            args.basic_auth,
+            args.no_list,
+            args.no_modify,
+        ),
+        'host': args.host,
+        'port': args.port,
+    }
 
     if args.https:
-        if args.https_host == 'adhoc':
-            ssl_context = 'adhoc'
-        else:
-            try:
-                ssl_context = generate_certificates(args.host, args.https_host)
-            except Exception:
-                print('error: failed to generate self-signed certificate')
-                print(traceback.format_exc())
-                print('warning: falling back ssl_context to adhoc')
-                ssl_context = 'adhoc'
-        if args.https_host:
-            prefix = ''
-            if args.basic_auth and basic_auth_show_password:
-                prefix = args.basic_auth + '@'
-            origin = f'https://{prefix}{args.https_host}'
-            if args.port != 443:
-                origin += f':{args.port}'
-            print(f' * Will be running on {origin}')
-    else:
-        ssl_context = None
+        (
+            uvicorn_options['ssl_certfile'],
+            uvicorn_options['ssl_keyfile'],
+        ) = generate_certificates(args.host, args.https_host)
 
-    app = create_flask_app(
-        args.root,
-        args.basic_auth,
-        args.no_list,
-        args.no_modify,
-    )
-    if args.debug or ssl_context == 'adhoc':
-        print('Starting Flask app...')
-        app.run(
-            host=args.host,
-            port=args.port,
-            debug=args.debug,
-            threaded=True,
-            processes=args.workers,
-            ssl_context=ssl_context,
-        )
-    else:
-        print('Starting Flask app using gunicorn...')
-        run_with_gunicorn(
-            app,
-            host=args.host,
-            port=args.port,
-            ssl_context=ssl_context,
-            workers=args.workers,
-        )
+    uvicorn.run(**uvicorn_options)
 
 
 if __name__ == '__main__':
