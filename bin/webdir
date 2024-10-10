@@ -30,6 +30,7 @@ def exit_with_package_import_error(e: ImportError):
         'uvicorn',
         'cryptography',
         'markupsafe',
+        'python-multipart'
     ]
     print(traceback.format_exc())
     print('You must install all the required packages:')
@@ -39,6 +40,7 @@ def exit_with_package_import_error(e: ImportError):
 
 try:
     import uvicorn
+    import multipart.multipart
     from fastapi import FastAPI, HTTPException, Request, Depends
     from fastapi.security import HTTPBasic, HTTPBasicCredentials
     from fastapi.responses import FileResponse, RedirectResponse, JSONResponse, HTMLResponse, PlainTextResponse
