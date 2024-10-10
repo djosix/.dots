@@ -21,6 +21,7 @@ from typing import NamedTuple, Union, Optional
 from argparse import ArgumentParser
 from contextlib import suppress
 from dataclasses import dataclass
+from urllib.parse import quote as urlquote
 
 
 def exit_with_package_import_error(e: ImportError):
@@ -40,7 +41,7 @@ def exit_with_package_import_error(e: ImportError):
 
 try:
     import uvicorn
-    import multipart.multipart
+    import multipart as _
     from fastapi import FastAPI, HTTPException, Request, Depends
     from fastapi.security import HTTPBasic, HTTPBasicCredentials
     from fastapi.responses import FileResponse, RedirectResponse, JSONResponse, HTMLResponse, PlainTextResponse
@@ -93,7 +94,7 @@ class Constant:
         white-space: nowrap;
     }
     .hidden {
-        display: none;
+        display: none !important;
     }
     .mark {
         background-color: yellow;
@@ -106,6 +107,36 @@ class Constant:
     }
     .table-row:hover {
         background-color: #F0F0F0;
+    }
+    #message, #message * {
+        font-family: sans-serif;
+    }
+    .h-space {
+        display: inline-block;
+        margin-right: 5px;
+    }
+    .menu.section * {
+        font-family: sans-serif !important;
+    }
+    .loader {
+        border: 5px solid #f3f3f3;
+        border-radius: 50%;
+        border-top: 5px solid #3498db;
+        width: 28px;
+        height: 28px;
+        -webkit-animation: spin 2s linear infinite; /* Safari */
+        animation: spin 2s linear infinite;
+        margin-top: 10px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+    @-webkit-keyframes spin {
+        0% { -webkit-transform: rotate(0deg); }
+        100% { -webkit-transform: rotate(360deg); }
+    }
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
     }
     ''')
 
@@ -175,6 +206,21 @@ class Constant:
             checkboxAll.checked = allChecked;
         }
     }
+    
+    function showMessage(html, timeout) {
+        const key = btoa(html);
+        const el = document.querySelector('dialog#message');
+        el.innerHTML = html;
+        el.setAttribute('x-key', key);
+        el.showModal();
+        if (timeout) {
+            setTimeout(function () {
+                if (el.getAttribute('x-key') === key) {
+                    el.close();
+                }
+            }, timeout);
+        }
+    }
 
     document.querySelectorAll('input.table-row-checkbox-all,input.table-row-checkbox').forEach(function (checkbox) {
         checkbox.addEventListener('input', function (e) {
@@ -221,6 +267,9 @@ class Constant:
             if (e.target.files.length > 0) {
                 document.body.appendChild(form);
                 form.submit();
+                showMessage(
+                    '<div >Uploading ' + e.target.files.length + ' file(s)...</div>' +
+                    '<div class="loader"></div>');
             }
         });
         form.appendChild(file);
@@ -399,12 +448,12 @@ class Constant:
         });
     });
 
-    if (location.hash === '#recent') {
-        console.log(123);
-        let a = document.querySelector('[data-sort-by=ctime]');
-        a.click();
-        a.click();
+    if (location.hash.startsWith('#message=')) {
+        const encodedMessage = location.hash.substring(9);
+        const decodedMessage = decodeURIComponent(encodedMessage);
+        showMessage(decodedMessage, 1000);
         location.hash = '';
+        history.replaceState(null, '', location.pathname + location.search);
     }
     ''')
 
@@ -522,7 +571,7 @@ class ListDirHTML:
             attrs['alt'] = 'unknown file type'
         else:
             src = Constant.SVG_DATA_URI_PREFIX
-            src += MiscUtil.base64_encode(svg)
+            src += base64_encode(svg)
             attrs['src'] = src
         return el('img', attrs)
 
@@ -537,15 +586,18 @@ class ListDirHTML:
         for i, entry in enumerate(entries):
             link_attrs = {}
             if entry.readable:
-                link_attrs['href'] = os.path.join(webpath, entry.name)
+                href = os.path.join(webpath, entry.name)
+                if entry.type == EntryType.DIRECTORY:
+                    href += '/'
+                link_attrs['href'] = href
             if entry.type == EntryType.FILE:
                 link_attrs['target'] = '_blank'
-            display_name = FormatUtil.entry_name(entry)
-            display_size = FormatUtil.entry_size(entry)
-            display_perm = FormatUtil.entry_permission(entry)
-            display_ctime = FormatUtil.date(entry.stat_ctime)
-            display_mtime = FormatUtil.date(entry.stat_mtime)
-            display_atime = FormatUtil.date(entry.stat_atime)
+            display_name = Format.entry_name(entry)
+            display_size = Format.entry_size(entry)
+            display_perm = Format.entry_permission(entry)
+            display_ctime = Format.date(entry.stat_ctime)
+            display_mtime = Format.date(entry.stat_mtime)
+            display_atime = Format.date(entry.stat_atime)
             table_rows.append(
                 el('tr.table-row', {
                     'id': display_name,
@@ -582,8 +634,10 @@ class ListDirHTML:
 
         if allow_modify:
             modification_buttons = [
-                el('button#upload', {'type': 'button'}, 'Upload'), ' ',
-                el('button#delete', {'type': 'button'}, 'Delete'), ' ',
+                el('button#upload', {'type': 'button'}, 'Upload'),
+                el('.h-space'),
+                el('button#delete', {'type': 'button'}, 'Delete'),
+                el('.h-space'),
                 el('button#newfolder', {'type': 'button'}, 'New Folder'),
             ]
         else:
@@ -601,18 +655,22 @@ class ListDirHTML:
                 el('style', Constant.STYLE)
             ]),
             el('body', [
+                el('dialog#message'),
                 el('.container', [
                     el('.section', [
                         el('h2', '/'.join(cls.__generate_breakcrumbs(webpath))),
                     ]),
-                    el('.section', [
+                    el('.section.menu', [
                         el('button', {'type': 'button',
-                                      'onclick': onclick_parent_btn}, '..'), ' ',
+                                      'onclick': onclick_parent_btn}, '..'),
+                        el('.h-space'),
                         el('input.name-filter', {'type': 'text',
                                                  'placeholder': 'RegExp name filter',
                                                  'autofocus': 'true',
-                                                 'spellcheck': 'false'}), ' ',
+                                                 'spellcheck': 'false'}),
+                        el('.h-space'),
                         *modification_buttons,
+                        el('.h-space'),
                     ]),
                     el('.section', [
                         el('table.table', [
@@ -700,7 +758,7 @@ def el(name, *args: list[Union[str, list, tuple, dict]], **kwargs) -> str:
         return f'<{escape(name_tag)}{attributes}>{children_html}</{escape(name_tag)}>'
 
 
-class FormatUtil:
+class Format:
     @classmethod
     def date(cls, timestamp: Union[int, float]):
         assert isinstance(timestamp, (int, float))
@@ -753,12 +811,25 @@ class FormatUtil:
     @classmethod
     def entry_size(cls, entry: Entry) -> str:
         if entry.type == EntryType.FILE:
-            return FormatUtil.size(entry.stat_size)
+            return cls.size(entry.stat_size)
         else:
             return '-'
 
+    @classmethod
+    def table(cls, data) -> str:
+        col_widths = [max(len(str(item)) for item in column) for column in zip(*data)]
 
-class PathUtil:
+        def format_row(row):
+            return ' | '.join(f'{str(item).ljust(col_widths[i])}' for i, item in enumerate(row))
+        lines = []
+        lines.append(format_row(data[0]))
+        lines.append('-+-'.join('-' * width for width in col_widths))
+        for row in data[1:]:
+            lines.append(format_row(row))
+        return '\n'.join(lines)
+
+
+class Path:
     @classmethod
     def sanitize(cls, path: str) -> str:
         path = path.replace('..', '')
@@ -794,36 +865,26 @@ class PathUtil:
         return False
 
 
-class MiscUtil:
-    @classmethod
-    def base64_encode(cls, s: str) -> str:
-        b = s.encode()
-        b = base64.b64encode(b)
-        s = b.decode()
-        return s
+def base64_encode(s: str) -> str:
+    b = s.encode()
+    b = base64.b64encode(b)
+    s = b.decode()
+    return s
 
-    @classmethod
-    def base64_url_encode(cls, s: str) -> str:
-        b = s.encode()
-        b = base64.urlsafe_b64encode(b)
-        s = b.decode()
-        return s.rstrip('=')
 
-    @classmethod
-    def guess_mimetype(cls, path: str) -> str:
-        name = os.path.basename(path).lower()
-        if not name:
-            return
-        mimetype = Constant.NAME_TO_MIMETYPE.get(name)
-        if mimetype is not None:
-            return mimetype
-        exts = name.split('.')
-        if len(exts) <= 1:
-            return
-        mimetype = Constant.EXT_TO_MIMETYPE.get(exts[-1])
-        if mimetype is not None:
-            return mimetype
-
+def guess_mimetype(path: str) -> str:
+    name = os.path.basename(path).lower()
+    if not name:
+        return
+    mimetype = Constant.NAME_TO_MIMETYPE.get(name)
+    if mimetype is not None:
+        return mimetype
+    exts = name.split('.')
+    if len(exts) <= 1:
+        return
+    mimetype = Constant.EXT_TO_MIMETYPE.get(exts[-1])
+    if mimetype is not None:
+        return mimetype
 
 class Handler:
     def __init__(self, root: str, no_list: bool, no_modify: bool):
@@ -831,10 +892,13 @@ class Handler:
         self.no_list = no_list
         self.no_modify = no_modify
 
-    def __is_browser_request(self, request: Request) -> bool:
+    def __is_browser(self, request: Request) -> bool:
         ua = request.headers.get('User-Agent', '').lower()
         expr = r'(chrome|chromium|crios|firefox|fxios|safari|opr\/|edg)'
         return re.search(expr, ua) is not None
+
+    def __should_respond_json(self, request: Request) -> bool:
+        return request.query_params.get('json') is not None
 
     def __abort(self, status: int, message: str):
         raise HTTPException(status_code=status, detail=message)
@@ -856,17 +920,66 @@ class Handler:
     async def __handle_view(self, request: Request):
         path = request.url.path.lstrip('/')
         local_path = self.__get_local_path(path)
+
         if not os.path.exists(local_path):
             self.__abort(404, 'file or directory does not exist')
-        if not PathUtil.get_readibility(local_path):
+        if not Path.get_readibility(local_path):
             self.__abort(403, 'no permission to access this location')
+
         if os.path.isfile(local_path):
-            return FileResponse(local_path, media_type=MiscUtil.guess_mimetype(local_path))
-        if os.path.isdir(local_path):
-            if self.no_list:
-                self.__abort(403, 'directory listing is forbidden')
-            return await self.__list_dir(local_path, self.__is_browser_request(request))
-        self.__abort(403, 'forbidden')
+            return await self.__handle_view_file(request, local_path)
+        elif os.path.isdir(local_path):
+            return await self.__handle_view_dir(request, local_path)
+        else:
+            self.__abort(403, 'forbidden')
+
+    async def __handle_view_file(self, request: Request, local_path: str):
+        if self.__should_respond_json(request):
+            with open(local_path, 'rb') as f:
+                content = base64.b64encode(f.read()).decode()
+            return JSONResponse(content={
+                'type': 'file',
+                'content': content,
+            })
+
+        return FileResponse(local_path, media_type=guess_mimetype(local_path))
+
+    async def __handle_view_dir(self, request: Request, local_path: str):
+        if self.no_list:
+            self.__abort(403, 'directory listing is forbidden')
+
+        entries = self.__list_dir(local_path)
+
+        if self.__should_respond_json(request):
+            return JSONResponse(content={
+                'type': 'directory',
+                'entries': [
+                    {
+                        'name': entry.name,
+                        'type': Format.entry_type(entry),
+                        'perm': Format.entry_permission(entry),
+                        'size': entry.stat_size,
+                    } for entry in entries
+                ]
+            })
+
+        if self.__is_browser(request):
+            relpath = os.path.relpath(local_path, self.abs_root)
+            webpath = os.path.abspath(os.path.join('/', relpath))
+            allow_modify = not self.no_modify
+            folder_writable = os.access(local_path, os.W_OK)
+            html = ListDirHTML.generate(webpath, entries, allow_modify, folder_writable)
+            return HTMLResponse(content=html)
+
+        return PlainTextResponse(content=Format.table([
+            ['name', 'size', 'permission', 'created at', 'modified at', 'accessed at'],
+            *[[Format.entry_name(entry),
+               Format.entry_size(entry),
+               Format.entry_permission(entry),
+               Format.date(entry.stat_ctime),
+               Format.date(entry.stat_mtime),
+               Format.date(entry.stat_atime)] for entry in entries]
+        ]))
 
     async def __handle_delete(self, request: Request):
         path = request.url.path.lstrip('/')
@@ -879,9 +992,9 @@ class Handler:
             if local_path is None:
                 self.__abort(400, f'invalid path: {entry_name}')
             dirpath = os.path.dirname(local_path)
-            if not PathUtil.get_writability(dirpath):
+            if not Path.get_writability(dirpath):
                 self.__abort(403, f'no permission to modify the parent directory of {entry_name}')
-            if not PathUtil.get_writability(local_path):
+            if not Path.get_writability(local_path):
                 self.__abort(403, f'no permission to delete {entry_name}')
 
         result = {}
@@ -903,8 +1016,9 @@ class Handler:
         for entry_name, local_path in zip(entry_names, local_paths):
             result[entry_name] = not os.path.exists(local_path)
 
-        if self.__is_browser_request(request):
-            return RedirectResponse(f'/{path}', status_code=302)
+        if self.__is_browser(request):
+            message = urlquote(f'Deleted {len(result)} file(s)')
+            return RedirectResponse(f'/{path}#message={message}', status_code=302)
         return JSONResponse({'deleted': result})
 
     async def __handle_upload(self, request: Request):
@@ -925,16 +1039,19 @@ class Handler:
             filepath = os.path.join(local_path, file.filename)
             assert os.path.abspath(filepath).startswith(local_path)
             try:
-                chunk_size = 4096
+                chunk_size = 1024 * 1024
                 with open(filepath, 'wb') as dst:
                     while chunk := await file.read(chunk_size):
                         dst.write(chunk)
+                os.chmod(filepath, 0o644)
             except PermissionError:
                 self.__abort(403, 'no permission to upload to this location')
             result[file.filename] = True
 
-        if self.__is_browser_request(request):
-            return RedirectResponse(f'/{path}#recent', status_code=302)
+        if self.__is_browser(request):
+            message = urlquote(f'Uploaded {len(result)} file(s)')
+            return RedirectResponse(f'/{path}#message={message}', status_code=302)
+
         return JSONResponse({'uploaded': result})
 
     async def __handle_mkdir(self, request: Request):
@@ -951,13 +1068,15 @@ class Handler:
             self.__abort(400, 'folder already exists')
 
         with suppress(OSError):
-            os.makedirs(folder_path, exist_ok=True)
+            os.makedirs(folder_path, exist_ok=True, mode=0o755)
 
         if not os.path.isdir(folder_path):
             self.__abort(500, 'failed to create folder')
 
-        if self.__is_browser_request(request):
-            return RedirectResponse(f'/{path}#recent', status_code=302)
+        if self.__is_browser(request):
+            message = urlquote(f'Created new folder {name}'.encode())
+            return RedirectResponse(f'/{path}#message={message}', status_code=302)
+
         return JSONResponse({'new_folder': name})
 
     def __get_local_path(self, path):
@@ -966,10 +1085,7 @@ class Handler:
             return abs_path
         self.__abort(400, 'invalid path: {}'.format(path))
 
-    async def __list_dir(self, abs_dir_path: str, is_browser_request: bool):
-        relpath = os.path.relpath(abs_dir_path, self.abs_root)
-        webpath = os.path.abspath(os.path.join('/', relpath))
-
+    def __list_dir(self, abs_dir_path: str) -> list[Entry]:
         entries: list[Entry] = []
         for item_name in os.listdir(abs_dir_path):
             item_path = os.path.join(abs_dir_path, item_name)
@@ -978,9 +1094,9 @@ class Handler:
                 entry = Entry(
                     name=item_name,
                     path=item_path,
-                    type=PathUtil.get_type(item_path),
-                    readable=PathUtil.get_readibility(item_path),
-                    writable=PathUtil.get_writability(item_path),
+                    type=Path.get_type(item_path),
+                    readable=Path.get_readibility(item_path),
+                    writable=Path.get_writability(item_path),
                     stat_ctime=stat.st_ctime,
                     stat_mtime=stat.st_mtime,
                     stat_atime=stat.st_atime,
@@ -988,32 +1104,7 @@ class Handler:
                 )
                 entries.append(entry)
         entries.sort(key=(lambda entry: (-entry.type.value, entry.name)))
-
-        if is_browser_request:
-            allow_modify = not self.no_modify
-            folder_writable = os.access(abs_dir_path, os.W_OK)
-            html = ListDirHTML.generate(webpath, entries, allow_modify, folder_writable)
-            return HTMLResponse(content=html)
-
-        # Assuming the `json` query parameter is in the request arguments
-        if 'json' in request.query_params:
-            return JSONResponse(content=[
-                {
-                    'name': entry.name,
-                    'type': FormatUtil.entry_type(entry),
-                    'perm': FormatUtil.entry_permission(entry),
-                    'size': entry.stat_size,
-                } for entry in entries
-            ])
-        else:
-            plain_text_content = ''.join((
-                '{}\t({} {})\n'.format(
-                    FormatUtil.entry_name(entry),
-                    FormatUtil.entry_permission(entry),
-                    FormatUtil.entry_size(entry),
-                ) for entry in entries
-            ))
-            return PlainTextResponse(content=plain_text_content)
+        return entries
 
 
 def create_fastapi_app(root: str,
@@ -1054,7 +1145,7 @@ def generate_certificates(host: str, common_name: Optional[str] = None) -> tuple
     current_major = int(version.split('.')[0])
     lowest_major = 36
     if current_major < lowest_major:
-        print(f'[TLS] warning: package cryptography v{current_major} is lower than v{lowest_major}')
+        print(f'TLS: warning: package cryptography v{current_major} is lower than v{lowest_major}')
 
     def generate_key():
         return ec.generate_private_key(ec.SECP256R1())
@@ -1119,8 +1210,8 @@ def generate_certificates(host: str, common_name: Optional[str] = None) -> tuple
 
     cert_cn = 'localhost'
     if common_name is None:
-        print(f'[TLS] warning: you are using default CN {cert_cn!r}')
-        print('[TLS] warning: you can change CN by adding --https-host HOSTNAME')
+        print(f'TLS: warning: you are using default CN {cert_cn!r}')
+        print('TLS: warning: you can change CN by adding --https-host HOSTNAME')
     else:
         cert_cn = common_name
 
@@ -1140,7 +1231,7 @@ def generate_certificates(host: str, common_name: Optional[str] = None) -> tuple
     if isfile(root_ca_key_path):
         root_ca_key = import_key(root_ca_key_path)
     else:
-        print(f'[TLS] generating {root_ca_key_path}')
+        print(f'TLS: generating {root_ca_key_path}')
         root_ca_key = generate_key()
         export_key(root_ca_key, root_ca_key_path)
         assert isfile(root_ca_key_path), repr(root_ca_key_path)
@@ -1148,7 +1239,7 @@ def generate_certificates(host: str, common_name: Optional[str] = None) -> tuple
         is_cert_dirty = True
 
     if not isfile(root_ca_cert_path) or is_cert_dirty:
-        print(f'[TLS] generating {root_ca_cert_path}')
+        print(f'TLS: generating {root_ca_cert_path}')
         root_ca_name = random_id('WebDir Root CA - ')
         root_ca_cert = sign_v3_ca(
             certificate_builder(root_ca_name, root_ca_key, root_ca_name, root_ca_key, 9487),
@@ -1166,7 +1257,7 @@ def generate_certificates(host: str, common_name: Optional[str] = None) -> tuple
     if isfile(key_path):
         key = import_key(root_ca_key_path)
     else:
-        print(f'[TLS] generating {key_path}')
+        print(f'TLS: generating {key_path}')
         key = generate_key()
         export_key(key, key_path)
         assert isfile(key_path), repr(key_path)
@@ -1177,11 +1268,11 @@ def generate_certificates(host: str, common_name: Optional[str] = None) -> tuple
         cert = import_certificate(cert_path)
         remain = cert.not_valid_after_utc - datetime.now(timezone.utc)
         if remain < timedelta(days=365):
-            print(f'[TLS] renewing {cert_path}')
+            print(f'TLS: renewing {cert_path}')
             os.remove(cert_path)
 
     if not isfile(cert_path) or is_cert_dirty:
-        print(f'[TLS] generating {cert_path}')
+        print(f'TLS: generating {cert_path}')
         cert = sign_usr_cert_has_san(
             certificate_builder(cert_cn, key, root_ca_name, root_ca_key, 397),
             subject_key=key, issuer_key=root_ca_key, san=[x509.DNSName(cert_cn)],
@@ -1191,14 +1282,14 @@ def generate_certificates(host: str, common_name: Optional[str] = None) -> tuple
         is_cert_dirty = True
 
     if not isfile(fullchain_path) or is_cert_dirty:
-        print(f'[TLS] generating {fullchain_path}')
+        print(f'TLS: generating {fullchain_path}')
         with open(cert_path) as in1, open(root_ca_cert_path) as in2, open(fullchain_path, 'w') as out:
             out.write(in1.read())
             out.write(in2.read())
         assert isfile(fullchain_path), repr(fullchain_path)
 
-    print(f'[TLS] using fullchain: {fullchain_path}')
-    print(f'[TLS] using key: {key_path}')
+    print(f'TLS: using fullchain: {fullchain_path}')
+    print(f'TLS: using key: {key_path}')
     return fullchain_path, key_path
 
 
@@ -1213,7 +1304,7 @@ def app():
 
 def main():
     @dataclass
-    class Options:
+    class Config:
         root: str
         host: str
         port: int
@@ -1228,7 +1319,7 @@ def main():
         assert os.path.exists(path), f'path {path!r} does not exist'
         return path
 
-    def _parse_args() -> Options:
+    def _parse_args() -> Config:
         parser = ArgumentParser()
         parser.add_argument('root', nargs='?', type=_path_type, default='.',
                             metavar='PATH', help='document root')
@@ -1247,17 +1338,17 @@ def main():
         parser.add_argument('--workers', '-w', type=int, default=8,
                             metavar='N', help='number of workers')
         args = parser.parse_args()
-        return Options(**vars(args))
+        return Config(**vars(args))
 
-    args = _parse_args()
+    cfg = _parse_args()
 
     basic_auth_show_password = False
 
-    if args.basic_auth is not None:
+    if cfg.basic_auth is not None:
         BASIC_AUTH_PROMPT = 'PROMPT'
         BASIC_AUTH_RANDOM = 'RANDOM'
-        basic_auth_tuple = args.basic_auth.split(':')
-        if len(basic_auth_tuple) == 1 and args.basic_auth == BASIC_AUTH_PROMPT:
+        basic_auth_tuple = cfg.basic_auth.split(':')
+        if len(basic_auth_tuple) == 1 and cfg.basic_auth == BASIC_AUTH_PROMPT:
             username = input('username: ')
             password = getpass.getpass('password: ')
         elif len(basic_auth_tuple) != 2:
@@ -1281,34 +1372,34 @@ def main():
                 basic_auth_show_password = True
             else:
                 password = basic_auth_tuple[1]
-        args.basic_auth = '{}:{}'.format(username, password)
+        cfg.basic_auth = '{}:{}'.format(username, password)
 
-    if args.https_host is not None:
-        args.https = True
+    if cfg.https_host is not None:
+        cfg.https = True
 
-    for key, value in vars(args).items():
+    for key, value in vars(cfg).items():
         if key == 'basic_auth' and value and not basic_auth_show_password:
             value = value.split(':')[0] + ':[redacted]'
-        print('[OPTION] {}: {}'.format(key, j(value)))
+        print('CONFIG: {} = {}'.format(key, j(value)))
 
-    uvicorn_options = {
+    uvicorn_kwargs = {
         'app': create_fastapi_app(
-            args.root,
-            args.basic_auth,
-            args.no_list,
-            args.no_modify,
+            cfg.root,
+            cfg.basic_auth,
+            cfg.no_list,
+            cfg.no_modify,
         ),
-        'host': args.host,
-        'port': args.port,
+        'host': cfg.host,
+        'port': cfg.port,
     }
 
-    if args.https:
+    if cfg.https:
         (
-            uvicorn_options['ssl_certfile'],
-            uvicorn_options['ssl_keyfile'],
-        ) = generate_certificates(args.host, args.https_host)
+            uvicorn_kwargs['ssl_certfile'],
+            uvicorn_kwargs['ssl_keyfile'],
+        ) = generate_certificates(cfg.host, cfg.https_host)
 
-    uvicorn.run(**uvicorn_options)
+    uvicorn.run(**uvicorn_kwargs)
 
 
 if __name__ == '__main__':
