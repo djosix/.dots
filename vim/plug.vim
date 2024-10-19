@@ -18,8 +18,6 @@ Plug 'scrooloose/nerdcommenter'
 Plug 'Chiel92/vim-autoformat'
 Plug 'terryma/vim-multiple-cursors'
 Plug 'tomasiser/vim-code-dark'
-Plug 'SirVer/ultisnips'
-Plug 'honza/vim-snippets'
 Plug 'junegunn/fzf', { 'do': { -> fzf#install() } }
 Plug 'junegunn/fzf.vim'  "// better to have: rg, ag, bat installed
 "Plug 'Valloric/YouCompleteMe'  " cd ~/.vim/plugged/YouCompleteMe/; ./install.py
