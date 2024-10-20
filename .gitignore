@@ -3,4 +3,5 @@ fishd.*
 fish_history
 dotbak
 .*.swp
+.vscode
 
