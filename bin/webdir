@@ -527,6 +527,10 @@ class Constant:
         'log': 'text/plain',
         'php': 'text/plain',
     }
+    
+    ENTRY_TYPE_DIRECTORY = 'directory'
+    ENTRY_TYPE_FILE = 'file'
+    ENTRY_TYPE_UNKNOWN = 'unknown'
 
 
 class EntryType(enum.Enum):
@@ -800,6 +804,15 @@ class Format:
             return '?'
 
     @classmethod
+    def entry_type_full(cls, entry: Entry) -> str:
+        if entry.type == EntryType.DIRECTORY:
+            return Constant.ENTRY_TYPE_DIRECTORY
+        elif entry.type == EntryType.FILE:
+            return Constant.ENTRY_TYPE_FILE
+        else:
+            return Constant.ENTRY_TYPE_UNKNOWN
+
+    @classmethod
     def entry_permission(cls, entry: Entry) -> str:
         string = ''
         if entry.readable:
@@ -938,7 +951,7 @@ class Handler:
             with open(local_path, 'rb') as f:
                 content = base64.b64encode(f.read()).decode()
             return JSONResponse(content={
-                'type': 'file',
+                'type': Constant.ENTRY_TYPE_FILE,
                 'content': content,
             })
 
@@ -952,12 +965,12 @@ class Handler:
 
         if self.__should_respond_json(request):
             return JSONResponse(content={
-                'type': 'directory',
+                'type': Constant.ENTRY_TYPE_DIRECTORY,
                 'entries': [
                     {
                         'name': entry.name,
-                        'type': Format.entry_type(entry),
-                        'perm': Format.entry_permission(entry),
+                        'type': Format.entry_type_full(entry),
+                        'permission': Format.entry_permission(entry),
                         'size': entry.stat_size,
                     } for entry in entries
                 ]
