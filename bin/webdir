@@ -899,11 +899,28 @@ def guess_mimetype(path: str) -> str:
     if mimetype is not None:
         return mimetype
 
+
+def mkdir_p(path: str, mode: int):
+    dirs_to_create = []
+    while True:
+        if os.path.isdir(path):
+            break
+        if os.path.exists(path):
+            raise FileExistsError(f'cannot create directory on {path}')
+        dirs_to_create.append(path)
+        path = os.path.split(path)[0]
+    dirs_to_create.reverse()
+    for dir in dirs_to_create:
+        os.mkdir(dir)
+        os.chmod(dir, mode)
+
+
 class Handler:
-    def __init__(self, root: str, no_list: bool, no_modify: bool):
+    def __init__(self, root: str, no_list: bool, no_modify: bool, create_writable: bool):
         self.abs_root = os.path.abspath(root)
         self.no_list = no_list
         self.no_modify = no_modify
+        self.create_writable = create_writable
 
     def __is_browser(self, request: Request) -> bool:
         ua = request.headers.get('User-Agent', '').lower()
@@ -1056,7 +1073,7 @@ class Handler:
                 with open(filepath, 'wb') as dst:
                     while chunk := await file.read(chunk_size):
                         dst.write(chunk)
-                os.chmod(filepath, 0o644)
+                os.chmod(filepath, (0o644, 0o666)[self.create_writable])
             except PermissionError:
                 self.__abort(403, 'no permission to upload to this location')
             result[file.filename] = True
@@ -1080,8 +1097,7 @@ class Handler:
         if os.path.exists(folder_path):
             self.__abort(400, 'folder already exists')
 
-        with suppress(OSError):
-            os.makedirs(folder_path, exist_ok=True, mode=0o755)
+        mkdir_p(folder_path, mode=(0o755, 0o777)[self.create_writable])
 
         if not os.path.isdir(folder_path):
             self.__abort(500, 'failed to create folder')
@@ -1123,9 +1139,11 @@ class Handler:
 def create_fastapi_app(root: str,
                        basic_auth: Optional[str],
                        no_list: bool,
-                       no_modify: bool) -> FastAPI:
+                       no_modify: bool,
+                       create_writable: bool,
+                       ) -> FastAPI:
     app = FastAPI()
-    handler = Handler(root, no_list, no_modify)
+    handler = Handler(root, no_list, no_modify, create_writable)
 
     route_options = {
         'methods': ['GET', 'POST'],
@@ -1327,6 +1345,7 @@ def main():
         no_list: bool
         no_modify: bool
         workers: int
+        create_writable: bool
 
     def _path_type(path):
         assert os.path.exists(path), f'path {path!r} does not exist'
@@ -1350,6 +1369,8 @@ def main():
                             help='disable modification feature')
         parser.add_argument('--workers', '-w', type=int, default=8,
                             metavar='N', help='number of workers')
+        parser.add_argument('--create-writable', '-W', action='store_true',
+                            help='create writable directories and files for others')
         args = parser.parse_args()
         return Config(**vars(args))
 
@@ -1401,6 +1422,7 @@ def main():
             cfg.basic_auth,
             cfg.no_list,
             cfg.no_modify,
+            cfg.create_writable,
         ),
         'host': cfg.host,
         'port': cfg.port,
