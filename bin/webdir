@@ -164,35 +164,32 @@ class Constant:
     });
 
     function refreshButtons() {
-        let checkboxes = [...document.querySelectorAll('input.table-row-checkbox')];
-        let selected = checkboxes.filter(el => el.checked);
-        let uploadButton = document.querySelector('button#upload');
-        if (uploadButton) {
-            if (selected.length > 0 || !writable && modifiable) {
-                uploadButton.setAttribute('disabled', '');
+        const checkboxes = [...document.querySelectorAll('input.table-row-checkbox')];
+        const selected = checkboxes.filter(el => el.checked);
+        const uploadButton = document.querySelector('button#upload');
+        const newFolderButton = document.querySelector('button#newfolder');
+        const deleteButton = document.querySelector('button#delete');
+        const moveButton = document.querySelector('button#move');
+        if (!modifiable || selected.length > 1 ||
+            (selected.length === 0 && !writable) ||
+            (selected.length === 1 && !selected[0].getAttribute('data-entry-perm').includes('W')))
+        {
+            uploadButton?.setAttribute('disabled', '');
+            newFolderButton?.setAttribute('disabled', '');
+        } else {
+            uploadButton?.removeAttribute('disabled');
+            if (selected.length === 1 && selected[0].getAttribute('data-entry-type') !== 'd') {
+                newFolderButton?.setAttribute('disabled', '');
             } else {
-                uploadButton.removeAttribute('disabled');
+                newFolderButton?.removeAttribute('disabled');
             }
         }
-        let deleteButton = document.querySelector('button#delete');
-        if (deleteButton) {
-            if (selected.length > 0 && writable && modifiable) {
-                deleteButton.removeAttribute('disabled');
-            } else {
-                deleteButton.setAttribute('disabled', '');
-            }
-        }
-        let renameButton = document.querySelector('button#rename');
-        if (renameButton) {
-            if (selected.length === 1 && writable && modifiable) {
-                renameButton.removeAttribute('disabled');
-            } else {
-                renameButton.setAttribute('disabled', '');
-            }
-        }
-        let newFolderButton = document.querySelector('button#newfolder');
-        if (newFolderButton && !writable) {
-            newFolderButton.setAttribute('disabled', '');
+        if (selected.length > 0 && writable && modifiable) {
+            deleteButton?.removeAttribute('disabled');
+            moveButton?.removeAttribute('disabled');
+        } else {
+            deleteButton?.setAttribute('disabled', '');
+            moveButton?.setAttribute('disabled', '');
         }
     }
 
@@ -252,19 +249,14 @@ class Constant:
     }
 
     function createUploadForm(action = '') {
-        let form = document.createElement('form');
-        form.setAttribute('action', action);
-        form.setAttribute('method', 'post');
+        let form = createHiddenForm(action, 'post');
         form.setAttribute('enctype', 'multipart/form-data');
-        form.style.display = 'none';
 
-        form.appendChild(function () {
-            let action = document.createElement('input');
-            action.setAttribute('type', 'hidden');
-            action.setAttribute('name', 'action');
-            action.setAttribute('value', 'upload');
-            return action;
-        }());
+        form.appendChild(createHiddenInput('action', 'upload'));
+
+        const selected = [...document.querySelectorAll('input.table-row-checkbox')].filter(el => el.checked);
+        const target = selected.length === 1 ? selected[0].getAttribute('data-entry-name') : '.';
+        form.appendChild(createHiddenInput('target', target));
 
         let file = document.createElement('input');
         file.setAttribute('type', 'file');
@@ -273,8 +265,7 @@ class Constant:
         file.addEventListener('change', function fileChangeListener(e) {
             e.target.removeEventListener('change', fileChangeListener);
             if (e.target.files.length > 0) {
-                document.body.appendChild(form);
-                form.submit();
+                submitHiddenForm(form);
                 showMessage(
                     '<div >Uploading ' + e.target.files.length + ' file(s)...</div>' +
                     '<div class="loader"></div>');
@@ -302,7 +293,6 @@ class Constant:
     });
 
     document.body.addEventListener('drop', function(e) {
-        console.log('test');
         e.preventDefault();
         if (!modifiable) {
             alert('Modification is disabled.');
@@ -315,92 +305,70 @@ class Constant:
         }
     }, true);
 
-    function deleteFiles(action = '') {
+    function createHiddenForm(action, method) {
         let form = document.createElement('form');
         form.setAttribute('action', action);
-        form.setAttribute('method', 'post');
+        form.setAttribute('method', method);
         form.style.display = 'none';
+        return form;
+    }
 
-        form.appendChild(function () {
-            let action = document.createElement('input');
-            action.setAttribute('type', 'hidden');
-            action.setAttribute('name', 'action');
-            action.setAttribute('value', 'delete');
-            return action;
-        }());
+    function submitHiddenForm(form) {
+        document.body.appendChild(form);
+        form.submit();
+    }
 
-        let selected = [...document.querySelectorAll('input.table-row-checkbox')].filter(el => el.checked);
+    function createHiddenInput(name, value) {
+        let input = document.createElement('input');
+        input.setAttribute('type', 'hidden');
+        input.setAttribute('name', name);
+        input.setAttribute('value', value);
+        return input;
+    }    
 
+    function deleteFiles(action = '') {
+        let form = createHiddenForm(action, 'post');
+        form.appendChild(createHiddenInput('action', 'delete'));
+
+        const selected = [...document.querySelectorAll('input.table-row-checkbox')].filter(el => el.checked);
         if (selected.length > 0) {
-            let result = confirm('Are you sure to delete these entries?');
-            if (!result) {
+            if (!confirm('Are you sure to delete these entries?')) {
                 return;
             }
         } else if (selected.length == 0) {
             return;
         }
-
-        for (let el of selected) {
-            let input = document.createElement('input');
-            input.setAttribute('type', 'hidden');
-            input.setAttribute('name', 'name');
-            input.setAttribute('value', el.getAttribute('data-entry-name'));
-            form.appendChild(input);
+        for (const el of selected) {
+            form.appendChild(createHiddenInput('name', el.getAttribute('data-entry-name')));
         }
 
-        document.body.appendChild(form);
-        form.submit();
+        submitHiddenForm(form);
     }
 
-    function renameEntry(action = '') {
-        let form = document.createElement('form');
-        form.setAttribute('action', action);
-        form.setAttribute('method', 'post');
-        form.style.display = 'none';
+    function moveEntries(action = '') {
+        const form = createHiddenForm(action, 'post');
+        form.appendChild(createHiddenInput('action', 'move'));
 
-        form.appendChild(function () {
-            let action = document.createElement('input');
-            action.setAttribute('type', 'hidden');
-            action.setAttribute('name', 'action');
-            action.setAttribute('value', 'rename');
-            return action;
-        }());
-
-        let selected = [...document.querySelectorAll('input.table-row-checkbox')].filter(el => el.checked);
-
-        if (selected.length !== 1) {
-            alert('Please select exactly one entry to rename.');
+        const selected = [...document.querySelectorAll('input.table-row-checkbox')].filter(el => el.checked);
+        if (!selected.length) {
+            alert('Please select at least one entry to move.');
             return;
         }
         
-        const sourceName = selected[0].getAttribute('data-entry-name');
+        for (let el of selected) {
+            form.appendChild(createHiddenInput('source', el.getAttribute('data-entry-name')));
+        }
 
-        const targetName = prompt('New name:');
+        const targetName = prompt('Destination:');
         if (targetName === null) {
             return;
         } else if (!targetName) {
-            alert('Please provide a new name.');
+            alert('Please provide a destination name.');
             return;
         }
+        form.appendChild(createHiddenInput('target', targetName));
 
-        form.appendChild(function () {
-            let action = document.createElement('input');
-            action.setAttribute('type', 'hidden');
-            action.setAttribute('name', 'source');
-            action.setAttribute('value', sourceName);
-            return action;
-        }());
-
-        form.appendChild(function () {
-            let action = document.createElement('input');
-            action.setAttribute('type', 'hidden');
-            action.setAttribute('name', 'target');
-            action.setAttribute('value', targetName);
-            return action;
-        }());
-
-        document.body.appendChild(form);
-        form.submit();
+        submitHiddenForm(form);
     }
 
     function createFolder(action='') {
@@ -418,31 +386,14 @@ class Constant:
             return;
         }
         let escapedName = CSS.escape(name);
-        if (document.querySelector(`[data-entry-name=${escapedName}]`)) {
-            alert(`Entry [${name}] already exists!`);
-            return;
-        }
 
-        let form = document.createElement('form');
-        form.setAttribute('action', action);
-        form.setAttribute('method', 'post');
-        form.style.display = 'none';
-        form.appendChild(function () {
-            let action = document.createElement('input');
-            action.setAttribute('type', 'hidden');
-            action.setAttribute('name', 'action');
-            action.setAttribute('value', 'new_folder');
-            return action;
-        }());
-        form.appendChild(function () {
-            let action = document.createElement('input');
-            action.setAttribute('type', 'hidden');
-            action.setAttribute('name', 'name');
-            action.setAttribute('value', name);
-            return action;
-        }());
-        document.body.appendChild(form);
-        form.submit();
+        let form = createHiddenForm(action, 'post');
+        form.appendChild(createHiddenInput('action', 'new_folder'));
+        form.appendChild(createHiddenInput('name', name));
+        const selected = [...document.querySelectorAll('input.table-row-checkbox')].filter(el => el.checked);
+        const target = selected.length === 1 ? selected[0].getAttribute('data-entry-name') : '.';
+        form.appendChild(createHiddenInput('target', target));
+        submitHiddenForm(form);
     }
 
     let deleteButton = document.querySelector('button#delete');
@@ -452,10 +403,10 @@ class Constant:
         })
     }
 
-    let renameButton = document.querySelector('button#rename');
-    if (renameButton) {
-        renameButton.addEventListener('click', function (e) {
-            renameEntry();
+    let moveButton = document.querySelector('button#move');
+    if (moveButton) {
+        moveButton.addEventListener('click', function (e) {
+            moveEntries();
         })
     }
 
@@ -685,6 +636,8 @@ class ListDirHTML:
                         el('input.table-row-checkbox', {
                             'type': 'checkbox',
                             'data-entry-name': entry.name,
+                            'data-entry-perm': display_perm,
+                            'data-entry-type': Format.entry_type(entry),
                         })
                     ]),
                     el('td.table-cell-icon', cls.__generate_icon_by_type(entry.type)),
@@ -709,7 +662,7 @@ class ListDirHTML:
                 el('.h-space'),
                 el('button#delete', {'type': 'button'}, 'Delete'),
                 el('.h-space'),
-                el('button#rename', {'type': 'button'}, 'Rename'),
+                el('button#move', {'type': 'button'}, 'Move'),
                 el('.h-space'),
                 el('button#newfolder', {'type': 'button'}, 'New Folder'),
             ]
@@ -1021,8 +974,8 @@ class Handler:
                 return await self.__handle_delete(request)
             elif action == 'new_folder':
                 return await self.__handle_mkdir(request)
-            elif action == 'rename':
-                return await self.__handle_rename(request)
+            elif action == 'move':
+                return await self.__handle_move(request)
         self.__abort(400, 'unknown action')
 
     async def __handle_view(self, request: Request):
@@ -1136,14 +1089,19 @@ class Handler:
         if not os.path.isdir(local_path):
             self.__abort(403, 'location is not a directory')
 
-        files = await request.form()
-        if 'file' not in files:
+        form = await request.form()
+        
+        files = form.getlist('file')
+        if not files:
             self.__abort(400, 'file is not provided')
 
+        target = form.get('target')
+        if not target:
+            self.__abort(400, 'target name is not provided')
+
         result = {}
-        for file in files.getlist('file'):
+        async def save(file, filepath):
             assert not isinstance(file, str)
-            filepath = os.path.join(local_path, file.filename)
             assert os.path.abspath(filepath).startswith(local_path)
             try:
                 chunk_size = 1024 * 1024
@@ -1155,6 +1113,15 @@ class Handler:
                 self.__abort(403, 'no permission to upload to this location')
             result[file.filename] = True
 
+        target_path = self.__get_local_path(f'{request.url.path}/{target}')
+        if os.path.isdir(target_path):
+            for file in files:
+                await save(file, os.path.join(target_path, file.filename))
+        elif len(files) > 1:
+            self.__abort(400, 'target is not a directory')
+        else:
+            await save(files[0], target_path)
+
         if self.__is_browser(request):
             message = urlquote(f'Uploaded {len(result)} file(s)')
             return RedirectResponse(f'{request.url.path}#message={message}', status_code=302)
@@ -1164,11 +1131,16 @@ class Handler:
     async def __handle_mkdir(self, request: Request):
         if self.no_modify:
             self.__abort(403, 'modification is forbidden')
+
         name = (await request.form()).get('name')
         if not name:
             self.__abort(400, 'name is not provided')
 
-        folder_path = self.__get_local_path(f'{request.url.path}/{name}')
+        target = (await request.form()).get('target')
+        if not target:
+            self.__abort(400, 'target name is not provided')
+
+        folder_path = self.__get_local_path(f'{request.url.path}/{target}/{name}')
         if os.path.exists(folder_path):
             self.__abort(400, 'folder already exists')
 
@@ -1183,35 +1155,47 @@ class Handler:
 
         return JSONResponse({'new_folder': name})
 
-    async def __handle_rename(self, request: Request):
+    async def __handle_move(self, request: Request):
         if self.no_modify:
             self.__abort(403, 'modification is forbidden')
 
-        source = (await request.form()).get('source')
-        if not source:
+        sources = (await request.form()).getlist('source')
+        if not sources:
             self.__abort(400, 'source name is not provided')
 
         target = (await request.form()).get('target')
         if not target:
             self.__abort(400, 'target name is not provided')
 
-        old_path = self.__get_local_path(f'{request.url.path}/{source}')
-        if not Path.get_writability(old_path):
-            self.__abort(403, 'no permission to rename')
+        source_paths = []
+        for source in sources:
+            source_path = self.__get_local_path(f'{request.url.path}/{source}')
+            if not Path.get_writability(source_path):
+                self.__abort(403, 'no permission to move the source location')
+            source_paths.append(source_path)
 
-        new_path = self.__get_local_path(f'{request.url.path}/{target}')
-        if os.path.exists(new_path):
-            self.__abort(400, 'target already exists')
-        if not Path.get_writability(os.path.dirname(new_path)):
-            self.__abort(403, 'no permission to rename to the target location')
+        result = {}
+        def move(src, dst):
+            try:
+                os.rename(src, dst)
+            except:
+                self.__abort(500, 'failed to move')
+            result[src] = dst
 
-        os.rename(old_path, new_path)
+        target_path = self.__get_local_path(f'{request.url.path}/{target}')
+        if os.path.isdir(target_path):
+            for source_path in source_paths:
+                move(source_path, os.path.join(target_path, os.path.basename(source_path)))
+        elif len(source_paths) > 1:
+            self.__abort(400, 'target is not a directory')
+        else:
+            move(source_paths[0], target_path)
 
         if self.__is_browser(request):
-            message = urlquote(f'Renamed to {target}'.encode())
+            message = urlquote(f'Moved {len(result)} item(s)'.encode())
             return RedirectResponse(f'{request.url.path}#message={message}', status_code=302)
 
-        return JSONResponse({'renamed': target})
+        return JSONResponse({'moved': result})
 
     def __get_local_path(self, path: str):
         path = path.replace('//', '/')
