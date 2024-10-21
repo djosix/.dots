@@ -182,6 +182,14 @@ class Constant:
                 deleteButton.setAttribute('disabled', '');
             }
         }
+        let renameButton = document.querySelector('button#rename');
+        if (renameButton) {
+            if (selected.length === 1 && writable && modifiable) {
+                renameButton.removeAttribute('disabled');
+            } else {
+                renameButton.setAttribute('disabled', '');
+            }
+        }
         let newFolderButton = document.querySelector('button#newfolder');
         if (newFolderButton && !writable) {
             newFolderButton.setAttribute('disabled', '');
@@ -344,6 +352,57 @@ class Constant:
         form.submit();
     }
 
+    function renameEntry(action = '') {
+        let form = document.createElement('form');
+        form.setAttribute('action', action);
+        form.setAttribute('method', 'post');
+        form.style.display = 'none';
+
+        form.appendChild(function () {
+            let action = document.createElement('input');
+            action.setAttribute('type', 'hidden');
+            action.setAttribute('name', 'action');
+            action.setAttribute('value', 'rename');
+            return action;
+        }());
+
+        let selected = [...document.querySelectorAll('input.table-row-checkbox')].filter(el => el.checked);
+
+        if (selected.length !== 1) {
+            alert('Please select exactly one entry to rename.');
+            return;
+        }
+        
+        const sourceName = selected[0].getAttribute('data-entry-name');
+
+        const targetName = prompt('New name:');
+        if (targetName === null) {
+            return;
+        } else if (!targetName) {
+            alert('Please provide a new name.');
+            return;
+        }
+
+        form.appendChild(function () {
+            let action = document.createElement('input');
+            action.setAttribute('type', 'hidden');
+            action.setAttribute('name', 'source');
+            action.setAttribute('value', sourceName);
+            return action;
+        }());
+
+        form.appendChild(function () {
+            let action = document.createElement('input');
+            action.setAttribute('type', 'hidden');
+            action.setAttribute('name', 'target');
+            action.setAttribute('value', targetName);
+            return action;
+        }());
+
+        document.body.appendChild(form);
+        form.submit();
+    }
+
     function createFolder(action='') {
         let name = prompt('Please specify a folder name:');
         if (!name) {
@@ -390,6 +449,13 @@ class Constant:
     if (deleteButton) {
         deleteButton.addEventListener('click', function (e) {
             deleteFiles();
+        })
+    }
+
+    let renameButton = document.querySelector('button#rename');
+    if (renameButton) {
+        renameButton.addEventListener('click', function (e) {
+            renameEntry();
         })
     }
 
@@ -642,6 +708,8 @@ class ListDirHTML:
                 el('button#upload', {'type': 'button'}, 'Upload'),
                 el('.h-space'),
                 el('button#delete', {'type': 'button'}, 'Delete'),
+                el('.h-space'),
+                el('button#rename', {'type': 'button'}, 'Rename'),
                 el('.h-space'),
                 el('button#newfolder', {'type': 'button'}, 'New Folder'),
             ]
@@ -953,6 +1021,8 @@ class Handler:
                 return await self.__handle_delete(request)
             elif action == 'new_folder':
                 return await self.__handle_mkdir(request)
+            elif action == 'rename':
+                return await self.__handle_rename(request)
         self.__abort(400, 'unknown action')
 
     async def __handle_view(self, request: Request):
@@ -1021,6 +1091,7 @@ class Handler:
     async def __handle_delete(self, request: Request):
         if self.no_modify:
             self.__abort(403, 'modification is forbidden')
+
         entry_names = (await request.form()).getlist('name')
         local_paths = [self.__get_local_path(f'{request.url.path}/{name}') for name in entry_names]
 
@@ -1060,6 +1131,7 @@ class Handler:
     async def __handle_upload(self, request: Request):
         if self.no_modify:
             self.__abort(403, 'modification is forbidden')
+
         local_path = self.__get_local_path(request.url.path)
         if not os.path.isdir(local_path):
             self.__abort(403, 'location is not a directory')
@@ -1111,9 +1183,40 @@ class Handler:
 
         return JSONResponse({'new_folder': name})
 
+    async def __handle_rename(self, request: Request):
+        if self.no_modify:
+            self.__abort(403, 'modification is forbidden')
+
+        source = (await request.form()).get('source')
+        if not source:
+            self.__abort(400, 'source name is not provided')
+
+        target = (await request.form()).get('target')
+        if not target:
+            self.__abort(400, 'target name is not provided')
+
+        old_path = self.__get_local_path(f'{request.url.path}/{source}')
+        if not Path.get_writability(old_path):
+            self.__abort(403, 'no permission to rename')
+
+        new_path = self.__get_local_path(f'{request.url.path}/{target}')
+        if os.path.exists(new_path):
+            self.__abort(400, 'target already exists')
+        if not Path.get_writability(os.path.dirname(new_path)):
+            self.__abort(403, 'no permission to rename to the target location')
+
+        os.rename(old_path, new_path)
+
+        if self.__is_browser(request):
+            message = urlquote(f'Renamed to {target}'.encode())
+            return RedirectResponse(f'{request.url.path}#message={message}', status_code=302)
+
+        return JSONResponse({'renamed': target})
+
     def __get_local_path(self, path: str):
+        path = path.replace('//', '/')
         prefix = self.base_path or '/'
-        assert path.startswith(prefix), path
+        assert path.startswith(prefix), str((path, prefix))
         abs_path = os.path.abspath(os.path.join(self.abs_root, path[len(prefix):].strip('/')))
         if abs_path.startswith(self.abs_root):
             return abs_path
