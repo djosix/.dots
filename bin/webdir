@@ -553,12 +553,12 @@ class Entry(NamedTuple):
 
 class ListDirHTML:
     @classmethod
-    def __generate_breakcrumbs(cls, webpath: str):
+    def __generate_breakcrumbs(cls, webpath: str, base: str):
         href_tokens = []
-        breadcrumb_elments = [el('a', {'href': '/'}, 'Home')]
+        breadcrumb_elments = [el('a', {'href': f'{base}/'}, 'Home')]
         for token in filter(len, webpath.split('/')):
             href_tokens.append(token)
-            href = ''.join(('/' + token) for token in href_tokens)
+            href = base + ''.join(('/' + token) for token in href_tokens)
             element = el('a', dict(href=href), token)
             breadcrumb_elments.append(element)
         return breadcrumb_elments
@@ -582,6 +582,7 @@ class ListDirHTML:
     @classmethod
     def generate(cls,
                  webpath: str,
+                 base: str,
                  entries: list[Entry],
                  allow_modify: bool,
                  folder_writable: bool) -> str:
@@ -590,7 +591,7 @@ class ListDirHTML:
         for i, entry in enumerate(entries):
             link_attrs = {}
             if entry.readable:
-                href = os.path.join(webpath, entry.name)
+                href = f'{base}{webpath}/{entry.name}'
                 if entry.type == EntryType.DIRECTORY:
                     href += '/'
                 link_attrs['href'] = href
@@ -662,7 +663,7 @@ class ListDirHTML:
                 el('dialog#message'),
                 el('.container', [
                     el('.section', [
-                        el('h2', '/'.join(cls.__generate_breakcrumbs(webpath))),
+                        el('h2', '/'.join(cls.__generate_breakcrumbs(webpath, base))),
                     ]),
                     el('.section.menu', [
                         el('button', {'type': 'button',
@@ -925,7 +926,7 @@ class Handler:
 
     def __base_path(self, base_path: str) -> str:
         base_path = base_path.strip('/')
-        return base_path and base_path + '/'
+        return base_path and '/' + base_path
 
     def __is_browser(self, request: Request) -> bool:
         ua = request.headers.get('User-Agent', '').lower()
@@ -939,8 +940,8 @@ class Handler:
         raise HTTPException(status_code=status, detail=message)
 
     async def handle(self, request: Request):
-        if not request.url.path[1:].startswith(self.base_path):
-            return RedirectResponse(f'/{self.base_path}{request.url.path[1:]}', status_code=302)
+        if not request.url.path.startswith(self.base_path + '/'):
+            return RedirectResponse(f'{self.base_path}{request.url.path}', status_code=302)
         if request.method == 'GET':
             return await self.__handle_view(request)
         elif request.method == 'POST':
@@ -955,8 +956,7 @@ class Handler:
         self.__abort(400, 'unknown action')
 
     async def __handle_view(self, request: Request):
-        path = request.url.path.lstrip('/')
-        local_path = self.__get_local_path(path)
+        local_path = self.__get_local_path(request.url.path)
 
         if not os.path.exists(local_path):
             self.__abort(404, 'file or directory does not exist')
@@ -1002,10 +1002,10 @@ class Handler:
 
         if self.__is_browser(request):
             relpath = os.path.relpath(local_path, self.abs_root)
-            webpath = os.path.abspath(os.path.join('/', relpath))
+            webpath = os.path.abspath(os.path.join('/', relpath)).rstrip('/')
             allow_modify = not self.no_modify
             folder_writable = os.access(local_path, os.W_OK)
-            html = ListDirHTML.generate(webpath, entries, allow_modify, folder_writable)
+            html = ListDirHTML.generate(webpath, self.base_path, entries, allow_modify, folder_writable)
             return HTMLResponse(content=html)
 
         return PlainTextResponse(content=Format.table([
@@ -1019,11 +1019,10 @@ class Handler:
         ]))
 
     async def __handle_delete(self, request: Request):
-        path = request.url.path.lstrip('/')
         if self.no_modify:
             self.__abort(403, 'modification is forbidden')
         entry_names = (await request.form()).getlist('name')
-        local_paths = [self.__get_local_path(os.path.join(path, name)) for name in entry_names]
+        local_paths = [self.__get_local_path(f'{request.url.path}/{name}') for name in entry_names]
 
         for entry_name, local_path in zip(entry_names, local_paths):
             if local_path is None:
@@ -1055,14 +1054,13 @@ class Handler:
 
         if self.__is_browser(request):
             message = urlquote(f'Deleted {len(result)} file(s)')
-            return RedirectResponse(f'/{path}#message={message}', status_code=302)
+            return RedirectResponse(f'{request.url.path}#message={message}', status_code=302)
         return JSONResponse({'deleted': result})
 
     async def __handle_upload(self, request: Request):
-        path = request.url.path.lstrip('/')
         if self.no_modify:
             self.__abort(403, 'modification is forbidden')
-        local_path = self.__get_local_path(path)
+        local_path = self.__get_local_path(request.url.path)
         if not os.path.isdir(local_path):
             self.__abort(403, 'location is not a directory')
 
@@ -1087,20 +1085,18 @@ class Handler:
 
         if self.__is_browser(request):
             message = urlquote(f'Uploaded {len(result)} file(s)')
-            return RedirectResponse(f'/{path}#message={message}', status_code=302)
+            return RedirectResponse(f'{request.url.path}#message={message}', status_code=302)
 
         return JSONResponse({'uploaded': result})
 
     async def __handle_mkdir(self, request: Request):
-        path = request.url.path.lstrip('/')
         if self.no_modify:
             self.__abort(403, 'modification is forbidden')
         name = (await request.form()).get('name')
         if not name:
             self.__abort(400, 'name is not provided')
 
-        folder_path = os.path.join(path, name)
-        folder_path = self.__get_local_path(folder_path)
+        folder_path = self.__get_local_path(f'{request.url.path}/{name}')
         if os.path.exists(folder_path):
             self.__abort(400, 'folder already exists')
 
@@ -1111,15 +1107,14 @@ class Handler:
 
         if self.__is_browser(request):
             message = urlquote(f'Created new folder {name}'.encode())
-            return RedirectResponse(f'/{path}#message={message}', status_code=302)
+            return RedirectResponse(f'{request.url.path}#message={message}', status_code=302)
 
         return JSONResponse({'new_folder': name})
 
-    def __get_local_path(self, path):
-        assert not path.startswith('/')
-        assert path.startswith(self.base_path), f'invalid path: {path}'
-        path = path[len(self.base_path):]
-        abs_path = os.path.abspath(os.path.join(self.abs_root, path))
+    def __get_local_path(self, path: str):
+        prefix = self.base_path or '/'
+        assert path.startswith(prefix), path
+        abs_path = os.path.abspath(os.path.join(self.abs_root, path[len(prefix):].strip('/')))
         if abs_path.startswith(self.abs_root):
             return abs_path
         self.__abort(400, 'invalid path: {}'.format(path))
