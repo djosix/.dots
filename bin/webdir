@@ -916,11 +916,16 @@ def mkdir_p(path: str, mode: int):
 
 
 class Handler:
-    def __init__(self, root: str, no_list: bool, no_modify: bool, create_writable: bool):
+    def __init__(self, root: str, base_path: str, no_list: bool, no_modify: bool, create_writable: bool):
         self.abs_root = os.path.abspath(root)
+        self.base_path = self.__base_path(base_path)
         self.no_list = no_list
         self.no_modify = no_modify
         self.create_writable = create_writable
+
+    def __base_path(self, base_path: str) -> str:
+        base_path = base_path.strip('/')
+        return base_path and base_path + '/'
 
     def __is_browser(self, request: Request) -> bool:
         ua = request.headers.get('User-Agent', '').lower()
@@ -934,6 +939,8 @@ class Handler:
         raise HTTPException(status_code=status, detail=message)
 
     async def handle(self, request: Request):
+        if not request.url.path[1:].startswith(self.base_path):
+            return RedirectResponse(f'/{self.base_path}{request.url.path[1:]}', status_code=302)
         if request.method == 'GET':
             return await self.__handle_view(request)
         elif request.method == 'POST':
@@ -1041,7 +1048,7 @@ class Handler:
                         with suppress(OSError):
                             os.remove(file)
                     with suppress(OSError):
-                        os.removedirs(prefix)
+                        os.rmdir(prefix)
 
         for entry_name, local_path in zip(entry_names, local_paths):
             result[entry_name] = not os.path.exists(local_path)
@@ -1109,6 +1116,9 @@ class Handler:
         return JSONResponse({'new_folder': name})
 
     def __get_local_path(self, path):
+        assert not path.startswith('/')
+        assert path.startswith(self.base_path), f'invalid path: {path}'
+        path = path[len(self.base_path):]
         abs_path = os.path.abspath(os.path.join(self.abs_root, path))
         if abs_path.startswith(self.abs_root):
             return abs_path
@@ -1137,13 +1147,14 @@ class Handler:
 
 
 def create_fastapi_app(root: str,
+                       base_path: str,
                        basic_auth: Optional[str],
                        no_list: bool,
                        no_modify: bool,
                        create_writable: bool,
                        ) -> FastAPI:
     app = FastAPI()
-    handler = Handler(root, no_list, no_modify, create_writable)
+    handler = Handler(root, base_path, no_list, no_modify, create_writable)
 
     route_options = {
         'methods': ['GET', 'POST'],
@@ -1346,6 +1357,7 @@ def main():
         no_modify: bool
         workers: int
         create_writable: bool
+        base_path: str
 
     def _path_type(path):
         assert os.path.exists(path), f'path {path!r} does not exist'
@@ -1371,6 +1383,8 @@ def main():
                             metavar='N', help='number of workers')
         parser.add_argument('--create-writable', '-W', action='store_true',
                             help='create writable directories and files for others')
+        parser.add_argument('--base-path', '-P', type=str, default='/',
+                            help='base path for the application')
         args = parser.parse_args()
         return Config(**vars(args))
 
@@ -1419,6 +1433,7 @@ def main():
     uvicorn_kwargs = {
         'app': create_fastapi_app(
             cfg.root,
+            cfg.base_path,
             cfg.basic_auth,
             cfg.no_list,
             cfg.no_modify,
