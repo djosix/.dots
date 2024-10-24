@@ -61,12 +61,17 @@ class Constant:
         border: 0px;
     }
     .container {
-        padding-top: 1em;
+        /*padding-top: 1em;
         padding-left: 1em;
-        padding-right: 1em;
+        padding-right: 1em;*/
     }
     .section {
-        padding-bottom: 1em;
+        display: flex;
+        overflow-x: auto;
+        white-space: nowrap;
+        padding-left: 0.7em;
+        padding-right: 0.7em;
+        padding-bottom: 0.5em;
     }
     .table-header-link {
         font-weight: bold;
@@ -544,7 +549,7 @@ class Constant:
         'log': 'text/plain',
         'php': 'text/plain',
     }
-    
+
     ENTRY_TYPE_DIRECTORY = 'directory'
     ENTRY_TYPE_FILE = 'file'
     ENTRY_TYPE_UNKNOWN = 'unknown'
@@ -1090,7 +1095,7 @@ class Handler:
             self.__abort(403, 'location is not a directory')
 
         form = await request.form()
-        
+
         files = form.getlist('file')
         if not files:
             self.__abort(400, 'file is not provided')
@@ -1100,6 +1105,7 @@ class Handler:
             self.__abort(400, 'target name is not provided')
 
         result = {}
+
         async def save(file, filepath):
             assert not isinstance(file, str)
             assert os.path.abspath(filepath).startswith(local_path)
@@ -1175,6 +1181,7 @@ class Handler:
             source_paths.append(source_path)
 
         result = {}
+
         def move(src, dst):
             try:
                 os.rename(src, dst)
