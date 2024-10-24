@@ -943,12 +943,13 @@ def mkdir_p(path: str, mode: int):
 
 
 class Handler:
-    def __init__(self, root: str, base_path: str, no_list: bool, no_modify: bool, create_writable: bool):
+    def __init__(self, root: str, base_path: str, no_list: bool, no_modify: bool, create_writable: bool, index_file: str):
         self.abs_root = os.path.abspath(root)
         self.base_path = self.__base_path(base_path)
         self.no_list = no_list
         self.no_modify = no_modify
         self.create_writable = create_writable
+        self.index_file = index_file
 
     def __base_path(self, base_path: str) -> str:
         base_path = base_path.strip('/')
@@ -1010,6 +1011,11 @@ class Handler:
         return FileResponse(local_path, media_type=guess_mimetype(local_path))
 
     async def __handle_view_dir(self, request: Request, local_path: str):
+        if self.index_file:
+            index_path = os.path.join(local_path, self.index_file)
+            if os.path.exists(index_path):
+                return FileResponse(index_path)
+
         if self.no_list:
             self.__abort(403, 'directory listing is forbidden')
 
@@ -1241,9 +1247,10 @@ def create_fastapi_app(root: str,
                        no_list: bool,
                        no_modify: bool,
                        create_writable: bool,
+                       index_file: str,
                        ) -> FastAPI:
     app = FastAPI()
-    handler = Handler(root, base_path, no_list, no_modify, create_writable)
+    handler = Handler(root, base_path, no_list, no_modify, create_writable, index_file)
 
     route_options = {
         'methods': ['GET', 'POST'],
@@ -1447,6 +1454,7 @@ def main():
         workers: int
         create_writable: bool
         base_path: str
+        index_file: str
 
     def _path_type(path):
         assert os.path.exists(path), f'path {path!r} does not exist'
@@ -1474,6 +1482,8 @@ def main():
                             help='create writable directories and files for others')
         parser.add_argument('--base-path', '-P', type=str, default='/',
                             help='base path for the application')
+        parser.add_argument('--index-file', '-I', type=str,
+                            help='if a directory is requested, serve the index file by default')
         args = parser.parse_args()
         return Config(**vars(args))
 
@@ -1527,6 +1537,7 @@ def main():
             cfg.no_list,
             cfg.no_modify,
             cfg.create_writable,
+            cfg.index_file,
         ),
         'host': cfg.host,
         'port': cfg.port,
