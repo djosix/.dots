@@ -55,16 +55,23 @@ class Constant:
     * {
         font-family: monospace;
     }
-    body,div,span,table,tr,tbody,thead,td,th {
+
+    body {
+        color-scheme: dark;
+        background-color: #1a1a1a;
+        color: #e0e0e0;
+    }
+
+    body, div, span, table, tr, tbody, thead, td, th {
         padding: 0px;
         margin: 0px;
         border: 0px;
     }
+
     .container {
-        /*padding-top: 1em;
-        padding-left: 1em;
-        padding-right: 1em;*/
+        background-color: #1a1a1a;
     }
+
     .section {
         display: flex;
         overflow-x: auto;
@@ -73,72 +80,110 @@ class Constant:
         padding-right: 0.7em;
         padding-bottom: 0.5em;
     }
+
     .table-header-link {
         font-weight: bold;
-        // font-style: italic;
+        color: #4a9eff;
     }
+
     .table-cell-checkbox {
         padding: 0.25em 0.25em;
     }
+
     .table-cell-normal {
         padding: 0.25em 0.5em;
     }
+
     .table-cell-icon {
         padding-left: 0.5em;
     }
+
     .menu-item {
         display: inline-block;
         margin-right: 0.5em;
+        color: #4a9eff;
     }
+
     .table-header {
-        border-bottom: 1px solid black;
+        border-bottom: 1px solid #4a4a4a;
     }
+
     .table {
         border-collapse: collapse;
         display: block;
         white-space: nowrap;
     }
+    
+    .entry-icon {
+        width: 16px;
+        height: 16px;
+    }
+    
+    .entry-icon.FILE {
+        background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxNiAxNiIgd2lkdGg9IjMycHgiIGhlaWdodD0iMzJweCI+PHBhdGggZmlsbD0iI0UwRTBFMCIgZD0iTSA0LjUgMiBDIDMuNjc1NzgxIDIgMyAyLjY3NTc4MSAzIDMuNSBMIDMgMTIuNSBDIDMgMTMuMzI0MjE5IDMuNjc1NzgxIDE0IDQuNSAxNCBMIDExLjUgMTQgQyAxMi4zMjQyMTkgMTQgMTMgMTMuMzI0MjE5IDEzIDEyLjUgTCAxMyA1LjI5Mjk2OSBMIDkuNzA3MDMxIDIgWiBNIDQuNSAzIEwgOSAzIEwgOSA2IEwgMTIgNiBMIDEyIDEyLjUgQyAxMiAxMi43ODEyNSAxMS43ODEyNSAxMyAxMS41IDEzIEwgNC41IDEzIEMgNC4yMTg3NSAxMyA0IDEyLjc4MTI1IDQgMTIuNSBMIDQgMy41IEMgNCAzLjIxODc1IDQuMjE4NzUgMyA0LjUgMyBaIE0gMTAgMy43MDcwMzEgTCAxMS4yOTI5NjkgNSBMIDEwIDUgWiBNIDYgOCBMIDYgOSBMIDEwIDkgTCAxMCA4IFogTSA2IDEwIEwgNiAxMSBMIDkgMTEgTCA5IDEwIFoiLz48L3N2Zz4=');
+        background-size: 16px 16px;
+    }
+    
+    .entry-icon.DIRECTORY {
+        background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxNiAxNiIgd2lkdGg9IjMycHgiIGhlaWdodD0iMzJweCI+PHBhdGggZmlsbD0iI0UwRTBFMCIgZD0iTSAyLjUgMiBDIDEuNjc1NzgxIDIgMSAyLjY3NTc4MSAxIDMuNSBMIDEgMTIuNSBDIDEgMTMuMzI0MjE5IDEuNjc1NzgxIDE0IDIuNSAxNCBMIDEzLjUgMTQgQyAxNC4zMjQyMTkgMTQgMTUgMTMuMzI0MjE5IDE1IDEyLjUgTCAxNSA1LjUgQyAxNSA0LjY3NTc4MSAxNC4zMjQyMTkgNCAxMy41IDQgTCA2Ljc5Njg3NSA0IEwgNi4xNDQ1MzEgMi43ODkwNjMgQyA1Ljg4MjgxMyAyLjMwMDc4MSA1LjM3NSAyIDQuODI0MjE5IDIgWiBNIDIuNSAzIEwgNC44MjQyMTkgMyBDIDUuMDA3ODEzIDMgNS4xNzU3ODEgMy4xMDE1NjMgNS4yNjU2MjUgMy4yNjE3MTkgTCA1LjY2NDA2MyA0IEwgMiA0IEwgMiAzLjUgQyAyIDMuMjE4NzUgMi4yMTg3NSAzIDIuNSAzIFogTSAyIDUgTCAxMy41IDUgQyAxMy43ODEyNSA1IDE0IDUuMjE4NzUgMTQgNS41IEwgMTQgMTIuNSBDIDE0IDEyLjc4MTI1IDEzLjc4MTI1IDEzIDEzLjUgMTMgTCAyLjUgMTMgQyAyLjIxODc1IDEzIDIgMTIuNzgxMjUgMiAxMi41IFoiLz48L3N2Zz4=');
+        background-size: 16px 16px;
+    }
+
     .hidden {
         display: none !important;
     }
+
     .mark {
-        background-color: yellow;
+        background-color: #665c00;
+        color: #ffffff;
     }
+
     .table-header-link[data-order=desc]::after {
         content: "-";
+        color: #4a9eff;
     }
+
     .table-header-link[data-order=asc]::after {
         content: "+";
+        color: #4a9eff;
     }
+
     .table-row:hover {
-        background-color: #F0F0F0;
+        background-color: #2a2a2a;
     }
+
     #message, #message * {
         font-family: sans-serif;
+        color: #e0e0e0;
     }
+
     .h-space {
         display: inline-block;
         margin-right: 5px;
     }
+
     .menu.section * {
         font-family: sans-serif !important;
     }
+
     .loader {
-        border: 5px solid #f3f3f3;
+        border: 5px solid #2a2a2a;
         border-radius: 50%;
-        border-top: 5px solid #3498db;
+        border-top: 5px solid #4a9eff;
         width: 28px;
         height: 28px;
-        -webkit-animation: spin 2s linear infinite; /* Safari */
+        -webkit-animation: spin 2s linear infinite;
         animation: spin 2s linear infinite;
         margin-top: 10px;
         margin-left: auto;
         margin-right: auto;
     }
+
     @-webkit-keyframes spin {
         0% { -webkit-transform: rotate(0deg); }
         100% { -webkit-transform: rotate(360deg); }
     }
+
     @keyframes spin {
         0% { transform: rotate(0deg); }
         100% { transform: rotate(360deg); }
@@ -481,24 +526,6 @@ class Constant:
     }
     ''')
 
-    SVG_DATA_URI_PREFIX = 'data:image/svg+xml;base64,'
-
-    ICON_SVG_DOCUMENT = (
-        '<svg fill="#000000" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="32px" height="32px">'
-        '<path d="M 4.5 2 C 3.675781 2 3 2.675781 3 3.5 L 3 12.5 C 3 13.324219 3.675781 14 4.5 14 L 11.5 14 C '
-        '12.324219 14 13 13.324219 13 12.5 L 13 5.292969 L 9.707031 2 Z M 4.5 3 L 9 3 L 9 6 L 12 6 L 12 12.5 C '
-        '12 12.78125 11.78125 13 11.5 13 L 4.5 13 C 4.21875 13 4 12.78125 4 12.5 L 4 3.5 C 4 3.21875 4.21875 3 '
-        '4.5 3 Z M 10 3.707031 L 11.292969 5 L 10 5 Z M 6 8 L 6 9 L 10 9 L 10 8 Z M 6 10 L 6 11 L 9 11 L 9 10 Z"/></svg>'
-    )
-    ICON_SVG_FOLDER = (
-        '<svg fill="#000000" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="32px" height="32px">'
-        '<path d="M 2.5 2 C 1.675781 2 1 2.675781 1 3.5 L 1 12.5 C 1 13.324219 1.675781 14 2.5 14 L 13.5 14 C 14.324219 '
-        '14 15 13.324219 15 12.5 L 15 5.5 C 15 4.675781 14.324219 4 13.5 4 L 6.796875 4 L 6.144531 2.789063 C 5.882813 '
-        '2.300781 5.375 2 4.824219 2 Z M 2.5 3 L 4.824219 3 C 5.007813 3 5.175781 3.101563 5.265625 3.261719 L 5.664063 '
-        '4 L 2 4 L 2 3.5 C 2 3.21875 2.21875 3 2.5 3 Z M 2 5 L 13.5 5 C 13.78125 5 14 5.21875 14 5.5 L 14 12.5 C 14 12.78125 '
-        '13.78125 13 13.5 13 L 2.5 13 C 2.21875 13 2 12.78125 2 12.5 Z"/></svg>'
-    )
-
     EL_REGEX_TAG = re.compile(r'^[^.#]*')
     EL_REGEX_IDS = re.compile(r'[#]([^.#]*)')
     EL_REGEX_CLASSES = re.compile(r'[.]([^.#]*)')
@@ -589,19 +616,7 @@ class ListDirHTML:
 
     @classmethod
     def __generate_icon_by_type(cls, type: EntryType) -> str:
-        svg = None
-        if type == EntryType.FILE:
-            svg = Constant.ICON_SVG_DOCUMENT
-        elif type == EntryType.DIRECTORY:
-            svg = Constant.ICON_SVG_FOLDER
-        attrs = {'style': 'width: 16px'}
-        if svg is None:
-            attrs['alt'] = 'unknown file type'
-        else:
-            src = Constant.SVG_DATA_URI_PREFIX
-            src += base64_encode(svg)
-            attrs['src'] = src
-        return el('img', attrs)
+        return el(f'.entry-icon.{type.name}')
 
     @classmethod
     def generate(cls,
