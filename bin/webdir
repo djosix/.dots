@@ -712,7 +712,7 @@ class ListDirHTML:
 
         return el('html', [
             el('head', [
-                el('title', webpath),
+                el('title', webpath or '/'),
                 el('meta', {'charset': 'utf-8'}),
                 el('meta', {'name': 'viewport',
                             'content': 'width=device-width, initial-scale=1'}),
