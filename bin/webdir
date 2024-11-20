@@ -203,7 +203,9 @@ class Constant:
         let checkboxes = document.querySelectorAll('input.table-row-checkbox');
         if (changedCheckBox === checkboxAll) {
             checkboxes.forEach(function (checkbox) {
-                checkbox.checked = checkboxAll.checked;
+                if (!checkbox.parentNode.parentNode.classList.contains('hidden')) {
+                    checkbox.checked = checkboxAll.checked;
+                }
             });
         } else {
             let allChecked = true;
