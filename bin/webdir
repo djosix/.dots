@@ -151,6 +151,16 @@ class Constant:
     .table-row:hover {
         background-color: #2a2a2a;
     }
+    
+    .table-row {
+        height: 24px;
+    }
+    
+    input.table-row-checkbox-all, input.table-row-checkbox {
+        width: 16px;
+        height: 16px;
+        margin: 0px;
+    }
 
     #message, #message * {
         font-family: sans-serif;
@@ -206,6 +216,7 @@ class Constant:
                 el.classList.add('hidden');
             }
         });
+        refreshCheckboxState(null);
     }
 
     document.querySelector('input.name-filter').addEventListener('input', function (e) {
@@ -245,12 +256,10 @@ class Constant:
 
     function refreshCheckboxState(changedCheckBox) {
         let checkboxAll = document.querySelector('input.table-row-checkbox-all');
-        let checkboxes = document.querySelectorAll('input.table-row-checkbox');
+        let checkboxes = document.querySelectorAll('tr.table-row:not(.hidden) input.table-row-checkbox');
         if (changedCheckBox === checkboxAll) {
             checkboxes.forEach(function (checkbox) {
-                if (!checkbox.parentNode.parentNode.classList.contains('hidden')) {
-                    checkbox.checked = checkboxAll.checked;
-                }
+                checkbox.checked = checkboxAll.checked;
             });
         } else {
             let allChecked = true;
@@ -284,6 +293,13 @@ class Constant:
             e.preventDefault();
             refreshCheckboxState(e.target);
             refreshButtons();
+        });
+        checkbox.addEventListener('mouseleave', function (e) {
+            e.preventDefault();
+            // If mouse is pressed, click the checkbox
+            if (e.buttons === 1) {
+                e.target.click();
+            }
         });
     });
 
