@@ -650,8 +650,8 @@ class ListDirHTML:
                 if entry.type == EntryType.DIRECTORY:
                     href += '/'
                 link_attrs['href'] = href
-            if entry.type == EntryType.FILE:
-                link_attrs['target'] = '_blank'
+            # if entry.type == EntryType.FILE:
+            #     link_attrs['target'] = '_blank'
             display_name = Format.entry_name(entry)
             display_size = Format.entry_size(entry)
             display_perm = Format.entry_permission(entry)
