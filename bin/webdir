@@ -696,13 +696,13 @@ class ListDirHTML:
 
         if allow_modify:
             modification_buttons = [
-                el('button#upload', {'type': 'button'}, 'Upload'),
+                el('button#newfolder', {'type': 'button'}, 'New Folder'),
                 el('.h-space'),
-                el('button#delete', {'type': 'button'}, 'Delete'),
+                el('button#upload', {'type': 'button'}, 'Upload'),
                 el('.h-space'),
                 el('button#move', {'type': 'button'}, 'Move'),
                 el('.h-space'),
-                el('button#newfolder', {'type': 'button'}, 'New Folder'),
+                el('button#delete', {'type': 'button'}, 'Delete'),
             ]
         else:
             modification_buttons = [el('span', 'modification is disabled')]
