@@ -104,14 +104,14 @@ class Constant:
         color: #4a9eff;
     }
 
-    .table-header {
-        border-bottom: 1px solid #4a4a4a;
-    }
-
     .table {
         border-collapse: collapse;
         display: block;
         white-space: nowrap;
+    }
+    
+    .table thead {
+        background-color: #113a47;
     }
     
     .entry-icon {
@@ -738,30 +738,32 @@ class ListDirHTML:
                     ]),
                     el('.section', [
                         el('table.table', [
-                            el('tr.table-header', [
-                                el('td.table-cell-checkbox',
-                                    el('input.table-row-checkbox-all', {'type': 'checkbox'})),
-                                el('td.table-cell-normal'),
-                                el('td.table-cell-normal', el('a.table-header-link',
-                                                              {'href': '#', 'data-sort-by': 'name'},
-                                                              'name')),
-                                el('td.table-cell-normal', el('a.table-header-link',
-                                                              {'href': '#', 'data-sort-by': 'size'},
-                                                              'size')),
-                                el('td.table-cell-normal', el('a.table-header-link',
-                                                              {'href': '#', 'data-sort-by': 'perm'},
-                                                              'permission')),
-                                el('td.table-cell-normal', el('a.table-header-link',
-                                                              {'href': '#', 'data-sort-by': 'ctime'},
-                                                              'created at')),
-                                el('td.table-cell-normal', el('a.table-header-link',
-                                                              {'href': '#', 'data-sort-by': 'mtime'},
-                                                              'modified at')),
-                                el('td.table-cell-normal', el('a.table-header-link',
-                                                              {'href': '#', 'data-sort-by': 'atime'},
-                                                              'accessed at')),
+                            el('thead', [
+                                el('tr', [
+                                    el('td.table-cell-checkbox',
+                                        el('input.table-row-checkbox-all', {'type': 'checkbox'})),
+                                    el('td.table-cell-normal'),
+                                    el('td.table-cell-normal', el('a.table-header-link',
+                                                                {'href': '#', 'data-sort-by': 'name'},
+                                                                'name')),
+                                    el('td.table-cell-normal', el('a.table-header-link',
+                                                                {'href': '#', 'data-sort-by': 'size'},
+                                                                'size')),
+                                    el('td.table-cell-normal', el('a.table-header-link',
+                                                                {'href': '#', 'data-sort-by': 'perm'},
+                                                                'permission')),
+                                    el('td.table-cell-normal', el('a.table-header-link',
+                                                                {'href': '#', 'data-sort-by': 'ctime'},
+                                                                'created at')),
+                                    el('td.table-cell-normal', el('a.table-header-link',
+                                                                {'href': '#', 'data-sort-by': 'mtime'},
+                                                                'modified at')),
+                                    el('td.table-cell-normal', el('a.table-header-link',
+                                                                {'href': '#', 'data-sort-by': 'atime'},
+                                                                'accessed at')),
+                                ]),
                             ]),
-                            ''.join(table_rows),
+                            el('tbody', table_rows),
                         ]),
                     ]),
                 ]),
