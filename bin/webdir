@@ -705,7 +705,7 @@ class ListDirHTML:
                 el('button#delete', {'type': 'button'}, 'Delete'),
             ]
         else:
-            modification_buttons = [el('span', 'modification is disabled')]
+            modification_buttons = ()
 
         parent_path = os.path.dirname(webpath)
         onclick_parent_btn = f'location.href = {j(parent_path)}'
