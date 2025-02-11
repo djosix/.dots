@@ -257,20 +257,26 @@ class Constant:
     function refreshCheckboxState(changedCheckBox) {
         let checkboxAll = document.querySelector('input.table-row-checkbox-all');
         let checkboxes = document.querySelectorAll('tr.table-row:not(.hidden) input.table-row-checkbox');
+        let selectedCount = 0;
         if (changedCheckBox === checkboxAll) {
             checkboxes.forEach(function (checkbox) {
                 checkbox.checked = checkboxAll.checked;
             });
+            if (checkboxAll.checked) {
+                selectedCount = checkboxes.length;
+            }
         } else {
             let allChecked = true;
             for (let checkbox of checkboxes) {
-                if (!checkbox.checked) {
+                if (checkbox.checked) {
+                    selectedCount++;
+                } else {
                     allChecked = false;
-                    break;
                 }
             }
             checkboxAll.checked = allChecked;
         }
+        document.querySelector('#selected').innerText = selectedCount > 0 ? selectedCount : '';
     }
     
     function showMessage(html, timeout) {
@@ -703,6 +709,8 @@ class ListDirHTML:
                 el('button#move', {'type': 'button'}, 'Move'),
                 el('.h-space'),
                 el('button#delete', {'type': 'button'}, 'Delete'),
+                el('.h-space'),
+                el('div#selected', {'style': 'margin: auto 0; border-radius: 5px; padding: 0px 4px; background-color: #7d7113; font-size: small'}),
             ]
         else:
             modification_buttons = ()
