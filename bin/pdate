@@ -21,10 +21,10 @@ def get_args():
                         help='any date and time string')
     parser.add_argument('--timezone', '-z',
                         type=int,
-                        default=0,
+                        default=None,
                         help='output timezone specified as an integer')
     parser.add_argument('--output', '-o',
-                        choices=('int', 'rfc3339', 'iso8601'),
+                        choices=('int', 'rfc3339', 'iso8601', 'compact'),
                         default='int',
                         help='output format')
     parser.add_argument('--unit', '-u',
@@ -36,13 +36,19 @@ def get_args():
 
 def check_args(args):
     if args.output in ('int', 'rfc3339'):
-        assert args.timezone == 0
+        assert args.timezone is None
 
 
 def parse_into_timestamp(input: str) -> float:
     if re.match(r'@\d+(\.\d+)?', input) is not None:
         return float(input[1:])
     return parse_date(input).timestamp()
+
+
+def timezone_or_default(tz_offset):
+    if tz_offset is not None:
+        return timezone(timedelta(hours=tz_offset))
+    return datetime.now().astimezone().tzinfo
 
 
 def print_formatted_datetime(timestamp: float):
@@ -54,19 +60,27 @@ def print_formatted_datetime(timestamp: float):
         return print(int(timestamp * multiplier))
     # RFC3339
     elif args.output == 'rfc3339':
-        utc_datetime = datetime.fromtimestamp(timestamp, UTC)
+        dt = datetime.fromtimestamp(timestamp, UTC)
         timespec = {'s': 'seconds',
                     'ms': 'milliseconds',
                     'us': 'microseconds'}[args.unit]
-        return print(utc_datetime.isoformat(timespec=timespec) + 'Z')
+        return print(dt.isoformat(timespec=timespec) + 'Z')
     # ISO8601
     elif args.output == 'iso8601':
-        tz = timezone(timedelta(hours=args.timezone))
-        utc_datetime = datetime.fromtimestamp(timestamp).astimezone(tz)
+        tz = timezone_or_default(args.timezone)
+        dt = datetime.fromtimestamp(timestamp).astimezone(tz)
         timespec = {'s': 'seconds',
                     'ms': 'milliseconds',
                     'us': 'microseconds'}[args.unit]
-        return print(utc_datetime.isoformat(timespec=timespec))
+        return print(dt.isoformat(timespec=timespec))
+    # Compact string
+    elif args.output == 'compact':
+        tz = timezone_or_default(args.timezone)
+        dt = datetime.fromtimestamp(timestamp).astimezone(tz)
+        timespec = {'s': 'seconds',
+                    'ms': 'milliseconds',
+                    'us': 'microseconds'}[args.unit]
+        return print(dt.strftime('%Y%m%d%H%M%S'))
 
 
 if __name__ == '__main__':
